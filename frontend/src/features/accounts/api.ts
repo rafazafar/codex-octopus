@@ -1,4 +1,4 @@
-import { del, get, post } from "@/lib/api-client";
+import { del, download, get, post } from "@/lib/api-client";
 
 import {
   AccountActionResponseSchema,
@@ -28,6 +28,19 @@ export function importAccount(file: File) {
   return post(`${ACCOUNTS_BASE_PATH}/import`, AccountImportResponseSchema, {
     body: formData,
   });
+}
+
+export async function exportAccounts() {
+  const { blob, filename } = await download(`${ACCOUNTS_BASE_PATH}/export`);
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = filename ?? "codex_accounts.json";
+  anchor.rel = "noopener";
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(objectUrl);
 }
 
 export function pauseAccount(accountId: string) {

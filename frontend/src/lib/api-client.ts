@@ -10,6 +10,11 @@ type RequestOptions = {
   credentials?: RequestCredentials;
 };
 
+export type DownloadResponse = {
+  blob: Blob;
+  filename: string | null;
+};
+
 const JSON_CONTENT_TYPE = "application/json";
 const EMPTY_RESPONSE_STATUS = new Set([204, 205]);
 
@@ -111,6 +116,22 @@ function parseApiErrorPayload(payload: unknown): {
     message,
     details: error,
   };
+}
+
+function parseFilenameFromContentDisposition(headerValue: string | null): string | null {
+  if (!headerValue) {
+    return null;
+  }
+  const utf8Match = headerValue.match(/filename\*\s*=\s*UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1]);
+  }
+  const quotedMatch = headerValue.match(/filename\s*=\s*"([^"]+)"/i);
+  if (quotedMatch?.[1]) {
+    return quotedMatch[1];
+  }
+  const bareMatch = headerValue.match(/filename\s*=\s*([^;]+)/i);
+  return bareMatch?.[1]?.trim() ?? null;
 }
 
 async function request(
@@ -245,4 +266,57 @@ export function del<T>(
     return request("DELETE", url, schemaOrOptions, maybeOptions);
   }
   return request("DELETE", url, null, schemaOrOptions);
+}
+
+export async function download(
+  url: string,
+  options?: RequestOptions,
+): Promise<DownloadResponse> {
+  const requestBody = buildRequestBody(options?.body);
+  const headers = new Headers(options?.headers);
+  if (requestBody.contentType && !headers.has("Content-Type")) {
+    headers.set("Content-Type", requestBody.contentType);
+  }
+  if (!headers.has("Accept")) {
+    headers.set("Accept", "*/*");
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "GET",
+      body: requestBody.body,
+      headers,
+      signal: options?.signal,
+      credentials: options?.credentials ?? "same-origin",
+    });
+  } catch (error) {
+    throw new ApiError({
+      status: 0,
+      code: "network_error",
+      message: error instanceof Error ? error.message : "Network request failed",
+      details: error,
+    });
+  }
+
+  if (response.status === 401) {
+    unauthorizedHandler?.();
+  }
+
+  if (!response.ok) {
+    const payload = await readJsonPayload(response);
+    const parsedError = parseApiErrorPayload(payload);
+    throw new ApiError({
+      status: response.status,
+      code: parsedError.code,
+      message: parsedError.message,
+      details: parsedError.details,
+      payload,
+    });
+  }
+
+  return {
+    blob: await response.blob(),
+    filename: parseFilenameFromContentDisposition(response.headers.get("Content-Disposition")),
+  };
 }

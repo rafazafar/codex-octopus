@@ -74,11 +74,21 @@ export const AccountsResponseSchema = z.object({
   accounts: z.array(AccountSummarySchema),
 });
 
-export const AccountImportResponseSchema = z.object({
+export const ImportedAccountSummarySchema = z.object({
   accountId: z.string(),
   email: z.string(),
   planType: z.string(),
   status: z.string(),
+});
+
+export const AccountImportResponseSchema = z.object({
+  format: z.enum(["auth_json", "portable_json"]),
+  importedCount: z.number().int().nonnegative(),
+  accounts: z.array(ImportedAccountSummarySchema).default([]),
+  accountId: z.string().nullable().optional(),
+  email: z.string().nullable().optional(),
+  planType: z.string().nullable().optional(),
+  status: z.string().nullable().optional(),
 });
 
 export const AccountActionResponseSchema = z.object({
@@ -148,9 +158,11 @@ export const ImportStateSchema = z.object({
 export type UsageTrendPoint = z.infer<typeof UsageTrendPointSchema>;
 export type AccountUsageTrend = z.infer<typeof AccountUsageTrendSchema>;
 export type AccountSummary = z.infer<typeof AccountSummarySchema>;
+export type ImportedAccountSummary = z.infer<typeof ImportedAccountSummarySchema>;
 export type AccountAdditionalWindow = z.infer<typeof AccountAdditionalWindowSchema>;
 export type AccountAdditionalQuota = z.infer<typeof AccountAdditionalQuotaSchema>;
 export type AccountTrendsResponse = z.infer<typeof AccountTrendsResponseSchema>;
+export type AccountImportResponse = z.infer<typeof AccountImportResponseSchema>;
 export type OauthStartResponse = z.infer<typeof OauthStartResponseSchema>;
 export type OauthStatusResponse = z.infer<typeof OauthStatusResponseSchema>;
 export type ManualOauthCallbackResponse = z.infer<typeof ManualOauthCallbackResponseSchema>;

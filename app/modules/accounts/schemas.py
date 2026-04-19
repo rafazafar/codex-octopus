@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from enum import Enum
 from typing import List
 
 from pydantic import Field
@@ -82,11 +83,26 @@ class AccountsResponse(DashboardModel):
     accounts: List[AccountSummary] = Field(default_factory=list)
 
 
-class AccountImportResponse(DashboardModel):
+class AccountImportFormat(str, Enum):
+    AUTH_JSON = "auth_json"
+    PORTABLE_JSON = "portable_json"
+
+
+class ImportedAccountSummary(DashboardModel):
     account_id: str
     email: str
     plan_type: str
     status: str
+
+
+class AccountImportResponse(DashboardModel):
+    format: AccountImportFormat
+    imported_count: int
+    accounts: list[ImportedAccountSummary] = Field(default_factory=list)
+    account_id: str | None = None
+    email: str | None = None
+    plan_type: str | None = None
+    status: str | None = None
 
 
 class AccountPauseResponse(DashboardModel):

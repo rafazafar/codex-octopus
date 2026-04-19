@@ -325,10 +325,49 @@ export const handlers = [
 		});
 		state.accounts = [...state.accounts, created];
 		return HttpResponse.json({
+			format: "auth_json",
+			importedCount: 1,
+			accounts: [
+				{
+					accountId: created.accountId,
+					email: created.email,
+					planType: created.planType,
+					status: created.status,
+				},
+			],
 			accountId: created.accountId,
 			email: created.email,
 			planType: created.planType,
 			status: created.status,
+		});
+	}),
+
+	http.get("/api/accounts/export", () => {
+		const payload = state.accounts.map((account) => ({
+			id: account.accountId,
+			email: account.email,
+			auth_mode: "oauth",
+			api_provider_mode: "openai_builtin",
+			user_id: null,
+			plan_type: account.planType,
+			account_id: account.accountId,
+			organization_id: null,
+			account_structure: null,
+			tokens: {
+				id_token: "id-token",
+				access_token: "access-token",
+				refresh_token: "refresh-token",
+			},
+			quota: null,
+			usage_updated_at: null,
+			tags: null,
+			created_at: null,
+			last_used: null,
+		}));
+		return HttpResponse.json(payload, {
+			headers: {
+				"Content-Disposition": 'attachment; filename="codex_accounts_2026-04-20.json"',
+			},
 		});
 	}),
 

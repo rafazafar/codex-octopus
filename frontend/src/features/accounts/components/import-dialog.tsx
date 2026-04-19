@@ -44,8 +44,11 @@ export function ImportDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Import auth.json</DialogTitle>
-          <DialogDescription>Upload an exported account auth.json file.</DialogDescription>
+          <DialogTitle>Import accounts JSON</DialogTitle>
+          <DialogDescription>
+            Accepts auth.json and compatible portable account exports. If any record is invalid, nothing will be
+            imported.
+          </DialogDescription>
         </DialogHeader>
 
         <form className="space-y-4" onSubmit={handleSubmit}>

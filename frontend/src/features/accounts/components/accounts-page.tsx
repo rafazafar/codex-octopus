@@ -23,6 +23,7 @@ export function AccountsPage() {
   const {
     accountsQuery,
     importMutation,
+    exportMutation,
     pauseMutation,
     resumeMutation,
     deleteMutation,
@@ -95,7 +96,9 @@ export function AccountsPage() {
               selectedAccountId={resolvedSelectedAccountId}
               onSelect={handleSelectAccount}
               onOpenImport={() => importDialog.show()}
+              onExport={() => void exportMutation.mutateAsync()}
               onOpenOauth={() => oauthDialog.show()}
+              exportBusy={exportMutation.isPending}
             />
           </div>
 

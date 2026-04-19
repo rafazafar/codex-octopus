@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, Plus, Search, Upload } from "lucide-react";
+import { ChevronDown, ChevronUp, Download, Plus, Search, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,9 @@ export type AccountListProps = {
   selectedAccountId: string | null;
   onSelect: (accountId: string) => void;
   onOpenImport: () => void;
+  onExport: () => void;
   onOpenOauth: () => void;
+  exportBusy?: boolean;
 };
 
 export function AccountList({
@@ -31,7 +33,9 @@ export function AccountList({
   selectedAccountId,
   onSelect,
   onOpenImport,
+  onExport,
   onOpenOauth,
+  exportBusy = false,
 }: AccountListProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -82,12 +86,23 @@ export function AccountList({
         </Select>
       </div>
 
-      <div className="flex gap-2">
-        <Button type="button" size="sm" variant="outline" onClick={onOpenImport} className="h-8 flex-1 gap-1.5 text-xs">
+      <div className="grid grid-cols-3 gap-2">
+        <Button type="button" size="sm" variant="outline" onClick={onOpenImport} className="h-8 gap-1.5 text-xs">
           <Upload className="h-3.5 w-3.5" />
           Import
         </Button>
-        <Button type="button" size="sm" onClick={onOpenOauth} className="h-8 flex-1 gap-1.5 text-xs">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={onExport}
+          disabled={exportBusy}
+          className="h-8 gap-1.5 text-xs"
+        >
+          <Download className="h-3.5 w-3.5" />
+          Export
+        </Button>
+        <Button type="button" size="sm" onClick={onOpenOauth} className="h-8 gap-1.5 text-xs">
           <Plus className="h-3.5 w-3.5" />
           Add Account
         </Button>

@@ -40,7 +40,9 @@ describe("useAccounts", () => {
     const imported = await result.current.importMutation.mutateAsync(
       new File(["{}"], "auth.json", { type: "application/json" }),
     );
-    await result.current.deleteMutation.mutateAsync(imported.accountId);
+    const importedAccountId = imported.accountId ?? imported.accounts[0]?.accountId;
+    expect(importedAccountId).toBeTruthy();
+    await result.current.deleteMutation.mutateAsync(importedAccountId as string);
 
     await waitFor(() => {
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["accounts", "list"] });

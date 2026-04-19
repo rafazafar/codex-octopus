@@ -39,6 +39,9 @@ async def test_import_and_list_accounts(async_client):
     response = await async_client.post("/api/accounts/import", files=files)
     assert response.status_code == 200
     data = response.json()
+    assert data["format"] == "auth_json"
+    assert data["importedCount"] == 1
+    assert len(data["accounts"]) == 1
     assert data["accountId"] == expected_account_id
     assert data["email"] == email
     assert data["planType"] == "plus"

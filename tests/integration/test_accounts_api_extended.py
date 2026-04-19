@@ -42,6 +42,32 @@ def _make_auth_json(account_id: str | None, email: str, plan_type: str = "plus")
     return {"tokens": tokens}
 
 
+def _make_portable_account_record(account_id: str | None, email: str, plan_type: str = "plus") -> dict:
+    auth_json = _make_auth_json(account_id, email, plan_type)
+    tokens = auth_json["tokens"]
+    return {
+        "id": account_id or fallback_account_id(email),
+        "email": email,
+        "auth_mode": "oauth",
+        "api_provider_mode": "openai_builtin",
+        "user_id": None,
+        "plan_type": plan_type,
+        "account_id": account_id,
+        "organization_id": None,
+        "account_structure": "personal",
+        "tokens": {
+            "id_token": tokens["idToken"],
+            "access_token": tokens["accessToken"],
+            "refresh_token": tokens["refreshToken"],
+        },
+        "quota": None,
+        "usage_updated_at": 1_776_581_170,
+        "tags": None,
+        "created_at": 1_775_743_494,
+        "last_used": 1_776_148_781,
+    }
+
+
 def _make_account(account_id: str, email: str, plan_type: str = "plus") -> Account:
     encryptor = TokenEncryptor()
     return Account(
@@ -94,8 +120,115 @@ async def test_import_falls_back_to_email_based_account_id(async_client):
     response = await async_client.post("/api/accounts/import", files=files)
     assert response.status_code == 200
     payload = response.json()
+    assert payload["format"] == "auth_json"
+    assert payload["importedCount"] == 1
     assert payload["accountId"] == fallback_account_id(email)
     assert payload["email"] == email
+
+
+@pytest.mark.asyncio
+async def test_import_portable_array_imports_multiple_accounts(async_client):
+    portable_payload = [
+        _make_portable_account_record("acc_portable_a", "portable-a@example.com", "plus"),
+        _make_portable_account_record("acc_portable_b", "portable-b@example.com", "team"),
+    ]
+    response = await async_client.post(
+        "/api/accounts/import",
+        files={"auth_json": ("portable.json", json.dumps(portable_payload), "application/json")},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["format"] == "portable_json"
+    assert payload["importedCount"] == 2
+    assert [item["email"] for item in payload["accounts"]] == [
+        "portable-a@example.com",
+        "portable-b@example.com",
+    ]
+
+    accounts_response = await async_client.get("/api/accounts")
+    assert accounts_response.status_code == 200
+    accounts = {entry["email"] for entry in accounts_response.json()["accounts"]}
+    assert {"portable-a@example.com", "portable-b@example.com"} <= accounts
+
+
+@pytest.mark.asyncio
+async def test_import_portable_array_rolls_back_when_any_record_is_invalid(async_client):
+    portable_payload = [
+        _make_portable_account_record("acc_valid", "valid@example.com", "plus"),
+        {
+            "id": "broken",
+            "email": "broken@example.com",
+            "plan_type": "team",
+            "account_id": "acc_broken",
+            "tokens": {
+                "id_token": "header.payload.sig",
+            },
+        },
+    ]
+    response = await async_client.post(
+        "/api/accounts/import",
+        files={"auth_json": ("portable.json", json.dumps(portable_payload), "application/json")},
+    )
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["error"]["code"] == "invalid_auth_json"
+
+    accounts_response = await async_client.get("/api/accounts")
+    assert accounts_response.status_code == 200
+    assert accounts_response.json()["accounts"] == []
+
+
+@pytest.mark.asyncio
+async def test_portable_import_reuses_overwrite_setting(async_client):
+    settings = await async_client.put(
+        "/api/settings",
+        json={
+            "stickyThreadsEnabled": False,
+            "preferEarlierResetAccounts": False,
+            "importWithoutOverwrite": False,
+            "totpRequiredOnLogin": False,
+        },
+    )
+    assert settings.status_code == 200
+    assert settings.json()["importWithoutOverwrite"] is False
+
+    first = await async_client.post(
+        "/api/accounts/import",
+        files={
+            "auth_json": (
+                "portable.json",
+                json.dumps([_make_portable_account_record("acc_portable_merge", "portable-merge@example.com", "plus")]),
+                "application/json",
+            )
+        },
+    )
+    assert first.status_code == 200
+
+    second = await async_client.post(
+        "/api/accounts/import",
+        files={
+            "auth_json": (
+                "portable.json",
+                json.dumps([_make_portable_account_record("acc_portable_merge", "portable-merge@example.com", "team")]),
+                "application/json",
+            )
+        },
+    )
+    assert second.status_code == 200
+
+    expected_account_id = generate_unique_account_id("acc_portable_merge", "portable-merge@example.com")
+    assert second.json()["format"] == "portable_json"
+    assert second.json()["accountId"] == expected_account_id
+    assert second.json()["planType"] == "team"
+
+    accounts_response = await async_client.get("/api/accounts")
+    assert accounts_response.status_code == 200
+    accounts = [entry for entry in accounts_response.json()["accounts"] if entry["email"] == "portable-merge@example.com"]
+    assert len(accounts) == 1
+    assert accounts[0]["accountId"] == expected_account_id
+    assert accounts[0]["planType"] == "team"
 
 
 @pytest.mark.asyncio
@@ -293,6 +426,54 @@ async def test_delete_account_removes_from_list(async_client):
     assert accounts.status_code == 200
     data = accounts.json()["accounts"]
     assert all(account["accountId"] != actual_account_id for account in data)
+
+
+@pytest.mark.asyncio
+async def test_export_accounts_returns_portable_array_and_round_trips(async_client):
+    for account_id, email, plan_type in (
+        ("acc_export_a", "export-a@example.com", "plus"),
+        ("acc_export_b", "export-b@example.com", "team"),
+    ):
+        response = await async_client.post(
+            "/api/accounts/import",
+            files={
+                "auth_json": (
+                    "auth.json",
+                    json.dumps(_make_auth_json(account_id, email, plan_type)),
+                    "application/json",
+                )
+            },
+        )
+        assert response.status_code == 200
+
+    export_response = await async_client.get("/api/accounts/export")
+    assert export_response.status_code == 200
+    assert export_response.headers["content-type"].startswith("application/json")
+    assert "attachment; filename=" in export_response.headers["content-disposition"]
+
+    exported_payload = export_response.json()
+    assert len(exported_payload) == 2
+    assert exported_payload[0]["tokens"]["id_token"]
+    assert exported_payload[0]["tokens"]["access_token"]
+    assert exported_payload[0]["tokens"]["refresh_token"]
+
+    existing_accounts = (await async_client.get("/api/accounts")).json()["accounts"]
+    for account in existing_accounts:
+        delete = await async_client.delete(f"/api/accounts/{account['accountId']}")
+        assert delete.status_code == 200
+
+    reimport = await async_client.post(
+        "/api/accounts/import",
+        files={"auth_json": ("portable.json", json.dumps(exported_payload), "application/json")},
+    )
+    assert reimport.status_code == 200
+    payload = reimport.json()
+    assert payload["format"] == "portable_json"
+    assert payload["importedCount"] == 2
+
+    final_accounts = (await async_client.get("/api/accounts")).json()["accounts"]
+    assert len(final_accounts) == 2
+    assert {account["email"] for account in final_accounts} == {"export-a@example.com", "export-b@example.com"}
 
 
 @pytest.mark.asyncio
