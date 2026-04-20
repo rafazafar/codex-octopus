@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import { buildOnboardingArtifact } from "@/features/onboarding/builders";
-import { createDashboardSettings } from "@/test/mocks/factories";
 
 describe("buildOnboardingArtifact", () => {
   it("builds Codex CLI config with API-key env wiring", () => {
     const artifact = buildOnboardingArtifact({
       client: "codex_cli",
       deployment: "local",
-      settings: createDashboardSettings({ apiKeyAuthEnabled: true }),
+      bootstrap: {
+        apiKeyAuthEnabled: true,
+        connectAddress: "10.0.0.8",
+      },
       browserOrigin: "http://127.0.0.1:2455",
       browserHostname: "127.0.0.1",
       runtimeConnectAddress: "10.0.0.8",
@@ -24,7 +26,10 @@ describe("buildOnboardingArtifact", () => {
     const artifact = buildOnboardingArtifact({
       client: "opencode",
       deployment: "remote",
-      settings: createDashboardSettings({ apiKeyAuthEnabled: false }),
+      bootstrap: {
+        apiKeyAuthEnabled: false,
+        connectAddress: "codex-lb.internal",
+      },
       browserOrigin: "http://localhost:2455",
       browserHostname: "localhost",
       runtimeConnectAddress: "codex-lb.internal",

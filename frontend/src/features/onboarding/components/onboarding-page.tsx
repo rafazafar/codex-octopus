@@ -16,7 +16,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getOnboardingBootstrap, runOnboardingChecks } from "@/features/onboarding/api";
+import { useAuthStore } from "@/features/auth/hooks/use-auth";
+import {
+  getOnboardingBootstrap,
+  getOnboardingValidationSettings,
+  runOnboardingChecks,
+} from "@/features/onboarding/api";
 import { buildOnboardingArtifact } from "@/features/onboarding/builders";
 import type {
   OnboardingCheck,
@@ -48,18 +53,25 @@ export function OnboardingPage() {
   const [deployment, setDeployment] = useState<OnboardingDeployment>("local");
   const [hostOverride, setHostOverride] = useState("");
   const [lastValidatedKey, setLastValidatedKey] = useState<string | null>(null);
+  const authenticated = useAuthStore((state) => state.authenticated);
+  const authInitialized = useAuthStore((state) => state.initialized);
 
   const bootstrapQuery = useQuery({
     queryKey: ["onboarding", "bootstrap"],
     queryFn: getOnboardingBootstrap,
   });
+  const validationSettingsQuery = useQuery({
+    queryKey: ["onboarding", "validation-settings"],
+    queryFn: getOnboardingValidationSettings,
+    enabled: authenticated,
+  });
 
   const validationMutation = useMutation({
     mutationFn: async () => {
-      if (!bootstrapQuery.data) {
+      if (!validationSettingsQuery.data) {
         return [];
       }
-      return runOnboardingChecks(client, bootstrapQuery.data.settings);
+      return runOnboardingChecks(client, validationSettingsQuery.data);
     },
   });
 
@@ -71,10 +83,10 @@ export function OnboardingPage() {
     return buildOnboardingArtifact({
       client,
       deployment,
-      settings: bootstrapQuery.data.settings,
+      bootstrap: bootstrapQuery.data,
       browserOrigin: window.location.origin,
       browserHostname: window.location.hostname,
-      runtimeConnectAddress: bootstrapQuery.data.runtimeConnectAddress,
+      runtimeConnectAddress: bootstrapQuery.data.connectAddress,
       hostOverride,
     });
   }, [bootstrapQuery.data, client, deployment, hostOverride]);
@@ -169,11 +181,11 @@ export function OnboardingPage() {
               <div className="rounded-lg border bg-muted/20 p-3 text-xs text-muted-foreground">
                 <p>
                   <span className="font-medium text-foreground">API key auth:</span>{" "}
-                  {bootstrapQuery.data.settings.apiKeyAuthEnabled ? "Enabled" : "Disabled"}
+                  {bootstrapQuery.data.apiKeyAuthEnabled ? "Enabled" : "Disabled"}
                 </p>
                 <p className="mt-1">
                   <span className="font-medium text-foreground">Runtime connect address:</span>{" "}
-                  {bootstrapQuery.data.runtimeConnectAddress || "<unavailable>"}
+                  {bootstrapQuery.data.connectAddress || "<unavailable>"}
                 </p>
               </div>
             ) : null}
@@ -259,22 +271,36 @@ export function OnboardingPage() {
                 Validation
               </CardTitle>
               <CardDescription>
-                Run quick checks against the selected client endpoint before leaving the dashboard.
+                {authenticated
+                  ? "Run quick checks against the selected client endpoint before leaving the dashboard."
+                  : "Live checks are available after dashboard sign-in. Public onboarding remains view-only."}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  type="button"
-                  onClick={() => void handleRunChecks()}
-                  disabled={!bootstrapQuery.data || validationMutation.isPending}
-                >
-                  {validationMutation.isPending ? "Running checks..." : "Run checks"}
-                </Button>
-                <span className="text-xs text-muted-foreground">
-                  Uses `/health/ready` and the client-specific model list endpoint.
-                </span>
-              </div>
+              {authenticated ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    onClick={() => void handleRunChecks()}
+                    disabled={
+                      !bootstrapQuery.data ||
+                      !validationSettingsQuery.data ||
+                      validationMutation.isPending
+                    }
+                  >
+                    {validationMutation.isPending ? "Running checks..." : "Run checks"}
+                  </Button>
+                  <span className="text-xs text-muted-foreground">
+                    Uses `/health/ready` and the client-specific model list endpoint.
+                  </span>
+                </div>
+              ) : (
+                <div className="rounded-lg border bg-muted/20 px-3 py-2 text-xs font-medium text-muted-foreground">
+                  {authInitialized
+                    ? "Sign in to the dashboard to run readiness and endpoint checks."
+                    : "Checking dashboard session status..."}
+                </div>
+              )}
 
               {validationError ? (
                 <AlertMessage variant="error">{validationError}</AlertMessage>
@@ -283,7 +309,9 @@ export function OnboardingPage() {
               <div className="space-y-2">
                 {validationChecks.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    {lastValidatedKey && lastValidatedKey !== selectionKey
+                    {!authenticated
+                      ? "Public onboarding can generate configuration, but validation stays disabled until a dashboard session is active."
+                      : lastValidatedKey && lastValidatedKey !== selectionKey
                       ? "Selection changed. Run checks again to validate the current client and deployment shape."
                       : "No checks run yet. Start with readiness, model-list reachability, and auth guidance."}
                   </p>

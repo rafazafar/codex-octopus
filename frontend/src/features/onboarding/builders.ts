@@ -1,14 +1,14 @@
-import type { DashboardSettings } from "@/features/settings/schemas";
 import { resolveRuntimeConnectAddress } from "@/lib/runtime-connect-address";
 import type {
   OnboardingClient,
   OnboardingDeployment,
+  PublicOnboardingBootstrap,
 } from "@/features/onboarding/schemas";
 
 export type OnboardingBuildInput = {
   client: OnboardingClient;
   deployment: OnboardingDeployment;
-  settings: DashboardSettings;
+  bootstrap: PublicOnboardingBootstrap;
   browserOrigin: string;
   browserHostname: string;
   runtimeConnectAddress: string | null;
@@ -28,9 +28,9 @@ export type OnboardingConfigArtifact = {
 };
 
 function buildApiKeyEnvVars(
-  settings: DashboardSettings,
+  bootstrap: PublicOnboardingBootstrap,
 ): OnboardingConfigArtifact["envVars"] {
-  if (!settings.apiKeyAuthEnabled) {
+  if (!bootstrap.apiKeyAuthEnabled) {
     return [];
   }
 
@@ -61,7 +61,7 @@ function buildCommonNotes(
   endpointPath: string,
 ): string[] {
   const notes: string[] = [];
-  if (input.settings.apiKeyAuthEnabled) {
+  if (input.bootstrap.apiKeyAuthEnabled) {
     notes.push("This server currently requires a dashboard-generated API key for client traffic.");
   } else {
     notes.push("API-key auth is currently disabled, so client traffic can connect without an Authorization header.");
@@ -81,7 +81,7 @@ export function buildOnboardingArtifact(
 
   if (input.client === "codex_cli") {
     const endpointValue = `${baseOrigin}/backend-api/codex`;
-    const envVars = buildApiKeyEnvVars(input.settings);
+    const envVars = buildApiKeyEnvVars(input.bootstrap);
     const snippetLines = [
       'model = "gpt-5.4"',
       'model_reasoning_effort = "high"',
@@ -93,7 +93,7 @@ export function buildOnboardingArtifact(
       'wire_api = "responses"',
       "supports_websockets = true",
       "requires_openai_auth = true",
-      ...(input.settings.apiKeyAuthEnabled
+      ...(input.bootstrap.apiKeyAuthEnabled
         ? ['env_key = "CODEX_LB_API_KEY"']
         : []),
     ];
@@ -122,7 +122,7 @@ export function buildOnboardingArtifact(
         openai: {
           options: {
             baseURL: endpointValue,
-            ...(input.settings.apiKeyAuthEnabled
+            ...(input.bootstrap.apiKeyAuthEnabled
               ? { apiKey: "{env:CODEX_LB_API_KEY}" }
               : {}),
           },
@@ -138,7 +138,7 @@ export function buildOnboardingArtifact(
       fileLabel: "~/.config/opencode/opencode.json",
       snippetLanguage: "json",
       snippet: JSON.stringify(config, null, 2),
-      envVars: buildApiKeyEnvVars(input.settings),
+      envVars: buildApiKeyEnvVars(input.bootstrap),
       notes: buildCommonNotes(input, "/v1"),
     };
   }
@@ -146,7 +146,7 @@ export function buildOnboardingArtifact(
   const endpointValue = `${baseOrigin}/v1`;
   const curlLines = [
     "curl \\",
-    `  ${input.settings.apiKeyAuthEnabled ? '-H "Authorization: Bearer $CODEX_LB_API_KEY" \\' : ""}`,
+    `  ${input.bootstrap.apiKeyAuthEnabled ? '-H "Authorization: Bearer $CODEX_LB_API_KEY" \\' : ""}`,
     `  "${endpointValue}/models"`,
   ].filter(Boolean);
 
@@ -158,7 +158,7 @@ export function buildOnboardingArtifact(
     fileLabel: "Example request",
     snippetLanguage: "bash",
     snippet: curlLines.join("\n"),
-    envVars: buildApiKeyEnvVars(input.settings),
+    envVars: buildApiKeyEnvVars(input.bootstrap),
     notes: buildCommonNotes(input, "/v1"),
   };
 }

@@ -1,23 +1,19 @@
 import { get } from "@/lib/api-client";
-import { getRuntimeConnectAddress } from "@/features/accounts/api";
 import { getSettings } from "@/features/settings/api";
 import {
   OnboardingHealthSchema,
+  PublicOnboardingBootstrapSchema,
   type OnboardingCheck,
   type OnboardingClient,
 } from "@/features/onboarding/schemas";
 import type { DashboardSettings } from "@/features/settings/schemas";
 
 export async function getOnboardingBootstrap() {
-  const [settings, runtime] = await Promise.all([
-    getSettings(),
-    getRuntimeConnectAddress().catch(() => ({ connectAddress: "" })),
-  ]);
+  return get("/api/public/onboarding", PublicOnboardingBootstrapSchema);
+}
 
-  return {
-    settings,
-    runtimeConnectAddress: runtime.connectAddress || "",
-  };
+export function getOnboardingValidationSettings() {
+  return getSettings();
 }
 
 function getModelListPath(client: OnboardingClient): string {

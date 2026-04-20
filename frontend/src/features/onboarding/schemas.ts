@@ -28,6 +28,12 @@ export const OnboardingCheckSchema = z.object({
   remediation: z.string().nullable(),
 });
 
+export const PublicOnboardingBootstrapSchema = z.object({
+  connectAddress: z.string(),
+  apiKeyAuthEnabled: z.boolean(),
+});
+
 export type OnboardingClient = z.infer<typeof OnboardingClientSchema>;
 export type OnboardingDeployment = z.infer<typeof OnboardingDeploymentSchema>;
 export type OnboardingCheck = z.infer<typeof OnboardingCheckSchema>;
+export type PublicOnboardingBootstrap = z.infer<typeof PublicOnboardingBootstrapSchema>;

@@ -137,6 +137,13 @@ export function resetMockState(): void {
 	state = createInitialState();
 }
 
+export function patchMockState(next: Partial<MockState>): void {
+	state = {
+		...state,
+		...next,
+	};
+}
+
 function parseDateValue(value: string | null): number | null {
 	if (!value) {
 		return null;
@@ -463,6 +470,13 @@ export const handlers = [
 
 	http.get("/api/settings/runtime/connect-address", () => {
 		return HttpResponse.json({ connectAddress: "codex-lb.internal" });
+	}),
+
+	http.get("/api/public/onboarding", () => {
+		return HttpResponse.json({
+			connectAddress: "codex-lb.internal",
+			apiKeyAuthEnabled: state.settings.apiKeyAuthEnabled,
+		});
 	}),
 
 	http.get("/v1/models", ({ request }) => {

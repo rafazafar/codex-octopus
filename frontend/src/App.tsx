@@ -5,6 +5,7 @@ import { StatusBar } from "@/components/layout/status-bar";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthGate } from "@/features/auth/components/auth-gate";
+import { AuthSessionBootstrap } from "@/features/auth/components/auth-session-bootstrap";
 import { useAuthStore } from "@/features/auth/hooks/use-auth";
 import { AccountsPage } from "@/features/accounts/components/accounts-page";
 import { ApisPage } from "@/features/apis/components/apis-page";
@@ -15,6 +16,7 @@ import { useTimeFormatStore } from "@/hooks/use-time-format";
 
 function AppLayout() {
   const logout = useAuthStore((state) => state.logout);
+  const authenticated = useAuthStore((state) => state.authenticated);
   const passwordRequired = useAuthStore((state) => state.passwordRequired);
   const timeFormat = useTimeFormatStore((state) => state.timeFormat);
 
@@ -24,7 +26,7 @@ function AppLayout() {
         onLogout={() => {
           void logout();
         }}
-        showLogout={passwordRequired}
+        showLogout={passwordRequired && authenticated}
       />
       <main className="mx-auto w-full max-w-[1500px] flex-1 px-4 py-8 sm:px-6">
         <Outlet />
@@ -34,23 +36,33 @@ function AppLayout() {
   );
 }
 
+function ProtectedAppLayout() {
+  return (
+    <AuthGate>
+      <AppLayout />
+    </AuthGate>
+  );
+}
+
 export default function App() {
   return (
     <TooltipProvider>
       <Toaster richColors />
-      <AuthGate>
+      <AuthSessionBootstrap>
         <Routes>
           <Route element={<AppLayout />}>
+            <Route path="/onboarding" element={<OnboardingPage />} />
+          </Route>
+          <Route element={<ProtectedAppLayout />}>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/onboarding" element={<OnboardingPage />} />
             <Route path="/accounts" element={<AccountsPage />} />
             <Route path="/apis" element={<ApisPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/firewall" element={<Navigate to="/settings" replace />} />
           </Route>
         </Routes>
-      </AuthGate>
+      </AuthSessionBootstrap>
     </TooltipProvider>
   );
 }
