@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 
 import { AlertMessage } from "@/components/alert-message";
-import { Badge } from "@/components/ui/badge";
 import { useAccounts } from "@/features/accounts/hooks/use-accounts";
 import { RequestFilters } from "@/features/dashboard/components/filters/request-filters";
 import { RecentRequestsTable } from "@/features/dashboard/components/recent-requests-table";
@@ -18,7 +17,7 @@ const MODEL_OPTION_DELIMITER = ":::";
 
 export function ApiRequestHistory({
   apiKeyId,
-  apiKeyName,
+  apiKeyName: _apiKeyName,
 }: ApiRequestHistoryProps) {
   const { accountsQuery } = useAccounts();
   const { filters, logsQuery, optionsQuery, updateFilters } =
@@ -60,15 +59,6 @@ export function ApiRequestHistory({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="outline" className="rounded-md px-2 py-1 text-[11px]">
-          Scoped to {apiKeyName}
-        </Badge>
-        <span className="text-xs text-muted-foreground">
-          Review requests made through this API key without leaving the detail view.
-        </span>
-      </div>
-
       {errorMessage ? (
         <AlertMessage variant="error">{errorMessage}</AlertMessage>
       ) : null}
