@@ -15,6 +15,7 @@ export type RequestLogsListFilters = {
   limit?: number;
   offset?: number;
   search?: string;
+  apiKeyId?: string;
   accountIds?: string[];
   statuses?: string[];
   modelOptions?: string[];
@@ -23,6 +24,7 @@ export type RequestLogsListFilters = {
 };
 
 export type RequestLogFacetFilters = {
+  apiKeyId?: string;
   since?: string;
   until?: string;
   accountIds?: string[];
@@ -61,6 +63,9 @@ export function getRequestLogs(params: RequestLogsListFilters = {}) {
   if (params.search) {
     query.set("search", params.search);
   }
+  if (params.apiKeyId) {
+    query.set("apiKeyId", params.apiKeyId);
+  }
   appendMany(query, "accountId", params.accountIds);
   appendMany(query, "status", params.statuses);
   appendMany(query, "modelOption", params.modelOptions);
@@ -76,6 +81,9 @@ export function getRequestLogs(params: RequestLogsListFilters = {}) {
 
 export function getRequestLogOptions(params: RequestLogFacetFilters = {}) {
   const query = new URLSearchParams();
+  if (params.apiKeyId) {
+    query.set("apiKeyId", params.apiKeyId);
+  }
   if (params.since) {
     query.set("since", params.since);
   }

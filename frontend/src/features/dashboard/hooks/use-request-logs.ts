@@ -94,13 +94,38 @@ function timeframeToSinceIso(timeframe: FilterState["timeframe"]): string | unde
 }
 
 export function useRequestLogs() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  return useRequestLogsWithOptions();
+}
 
-  const filters = useMemo(() => parseFilterState(searchParams), [searchParams]);
+type UseRequestLogsOptions = {
+  apiKeyId?: string | null;
+  enabled?: boolean;
+  includeAccountFilters?: boolean;
+};
+
+export function useRequestLogsWithOptions(options: UseRequestLogsOptions = {}) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const {
+    apiKeyId = null,
+    enabled = true,
+    includeAccountFilters = true,
+  } = options;
+
+  const filters = useMemo(() => {
+    const parsed = parseFilterState(searchParams);
+    if (includeAccountFilters) {
+      return parsed;
+    }
+    return {
+      ...parsed,
+      accountIds: [],
+    };
+  }, [includeAccountFilters, searchParams]);
   const since = useMemo(() => timeframeToSinceIso(filters.timeframe), [filters.timeframe]);
   const listFilters = useMemo<RequestLogsListFilters>(
     () => ({
       search: filters.search || undefined,
+      apiKeyId: apiKeyId ?? undefined,
       limit: filters.limit,
       offset: filters.offset,
       accountIds: filters.accountIds,
@@ -108,20 +133,22 @@ export function useRequestLogs() {
       modelOptions: filters.modelOptions,
       since,
     }),
-    [filters, since],
+    [apiKeyId, filters, since],
   );
   const facetFilters = useMemo<RequestLogFacetFilters>(
     () => ({
+      apiKeyId: apiKeyId ?? undefined,
       since,
       accountIds: filters.accountIds,
       modelOptions: filters.modelOptions,
     }),
-    [filters.accountIds, filters.modelOptions, since],
+    [apiKeyId, filters.accountIds, filters.modelOptions, since],
   );
 
   const logsQuery = useQuery({
     queryKey: ["dashboard", "request-logs", listFilters],
     queryFn: () => getRequestLogs(listFilters),
+    enabled,
     refetchInterval: 30_000,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
@@ -131,6 +158,7 @@ export function useRequestLogs() {
   const optionsQuery = useQuery({
     queryKey: ["dashboard", "request-log-options", facetFilters],
     queryFn: () => getRequestLogOptions(facetFilters),
+    enabled,
     refetchInterval: 30_000,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,

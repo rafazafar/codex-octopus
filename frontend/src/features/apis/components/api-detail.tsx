@@ -16,13 +16,18 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ApiKey } from "@/features/api-keys/schemas";
+import { ApiRequestHistory } from "@/features/apis/components/api-request-history";
 import { ApiKeyInfo } from "@/features/apis/components/api-key-info";
 import { ApiTrendChart } from "@/features/apis/components/api-trend-chart";
 import type { ApiKeyUsage7DayResponse } from "@/features/apis/schemas";
 
+export type ApiDetailView = "overview" | "history";
+
 export type ApiDetailProps = {
 	apiKey: ApiKey | null;
+	view: ApiDetailView;
 	trends?: {
 		cost: { t: string; v: number }[];
 		tokens: { t: string; v: number }[];
@@ -35,6 +40,7 @@ export type ApiDetailProps = {
 	onDelete: (apiKey: ApiKey) => void;
 	onRegenerate: (apiKey: ApiKey) => void;
 	onToggleActive: (apiKey: ApiKey) => void;
+	onViewChange: (view: ApiDetailView) => void;
 };
 
 function accumulateData(
@@ -49,6 +55,7 @@ function accumulateData(
 
 export function ApiDetail({
 	apiKey,
+	view,
 	trends,
 	usage7Day,
 	usage7DayLoading = false,
@@ -58,6 +65,7 @@ export function ApiDetail({
 	onDelete,
 	onRegenerate,
 	onToggleActive,
+	onViewChange,
 }: ApiDetailProps) {
 	const [showAccumulated, setShowAccumulated] = useState(false);
 
@@ -135,84 +143,101 @@ export function ApiDetail({
 							Regenerate
 						</DropdownMenuItem>
 					</DropdownMenuContent>
-				</DropdownMenu>
-			</div>
-
-			<div className="space-y-4 rounded-lg border bg-muted/30 p-4">
-				<div className="flex items-center justify-end gap-3">
-					<div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-						<span className="flex items-center gap-1.5">
-							Tokens
-							<span className="inline-block h-2 w-2 rounded-full bg-chart-2" />
-						</span>
-						<span className="flex items-center gap-1.5">
-							Cost
-							<span className="inline-block h-2 w-2 rounded-full bg-chart-1" />
-						</span>
-					</div>
-					<div className="flex items-center gap-1.5 rounded-md border px-2 py-1">
-						<span className="text-[10px]">Accumulated</span>
-						<Switch
-							size="sm"
-							checked={showAccumulated}
-							onCheckedChange={setShowAccumulated}
-						/>
-					</div>
+					</DropdownMenu>
 				</div>
 
-				{hasTrends && chartData && (
-					<ApiTrendChart cost={chartData.cost} tokens={chartData.tokens} />
-				)}
-			</div>
+			<Tabs
+				value={view}
+				onValueChange={(next) => onViewChange(next as ApiDetailView)}
+				className="space-y-4"
+			>
+				<TabsList variant="line">
+					<TabsTrigger value="overview">Overview</TabsTrigger>
+					<TabsTrigger value="history">History</TabsTrigger>
+				</TabsList>
 
-			{usage7DayError ? (
-				<AlertMessage variant="error">{usage7DayError}</AlertMessage>
-			) : null}
+				<TabsContent value="overview" className="space-y-4">
+					<div className="space-y-4 rounded-lg border bg-muted/30 p-4">
+						<div className="flex items-center justify-end gap-3">
+							<div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+								<span className="flex items-center gap-1.5">
+									Tokens
+									<span className="inline-block h-2 w-2 rounded-full bg-chart-2" />
+								</span>
+								<span className="flex items-center gap-1.5">
+									Cost
+									<span className="inline-block h-2 w-2 rounded-full bg-chart-1" />
+								</span>
+							</div>
+							<div className="flex items-center gap-1.5 rounded-md border px-2 py-1">
+								<span className="text-[10px]">Accumulated</span>
+								<Switch
+									size="sm"
+									checked={showAccumulated}
+									onCheckedChange={setShowAccumulated}
+								/>
+							</div>
+						</div>
 
-			<ApiKeyInfo
-				apiKey={apiKey}
-				usageSummary={usageSummary}
-				usageMessage={usageMessage}
-				allowUsageSummaryFallback={false}
-			/>
+						{hasTrends && chartData && (
+							<ApiTrendChart cost={chartData.cost} tokens={chartData.tokens} />
+						)}
+					</div>
 
-			<div className="flex flex-wrap gap-2 border-t pt-4">
-				{apiKey.isActive ? (
-					<Button
-						type="button"
-						size="sm"
-						variant="outline"
-						className="h-8 gap-1.5 text-xs"
-						onClick={() => onToggleActive(apiKey)}
-						disabled={busy}
-					>
-						<Ellipsis className="h-3.5 w-3.5" />
-						Disable
-					</Button>
-				) : (
-					<Button
-						type="button"
-						size="sm"
-						className="h-8 gap-1.5 text-xs"
-						onClick={() => onToggleActive(apiKey)}
-						disabled={busy}
-					>
-						<Play className="h-3.5 w-3.5" />
-						Enable
-					</Button>
-				)}
-				<Button
-					type="button"
-					size="sm"
-					variant="destructive"
-					className="h-8 gap-1.5 text-xs"
-					onClick={() => onDelete(apiKey)}
-					disabled={busy}
-				>
-					<Trash2 className="h-3.5 w-3.5" />
-					Delete
-				</Button>
-			</div>
+					{usage7DayError ? (
+						<AlertMessage variant="error">{usage7DayError}</AlertMessage>
+					) : null}
+
+					<ApiKeyInfo
+						apiKey={apiKey}
+						usageSummary={usageSummary}
+						usageMessage={usageMessage}
+						allowUsageSummaryFallback={false}
+					/>
+
+					<div className="flex flex-wrap gap-2 border-t pt-4">
+						{apiKey.isActive ? (
+							<Button
+								type="button"
+								size="sm"
+								variant="outline"
+								className="h-8 gap-1.5 text-xs"
+								onClick={() => onToggleActive(apiKey)}
+								disabled={busy}
+							>
+								<Ellipsis className="h-3.5 w-3.5" />
+								Disable
+							</Button>
+						) : (
+							<Button
+								type="button"
+								size="sm"
+								className="h-8 gap-1.5 text-xs"
+								onClick={() => onToggleActive(apiKey)}
+								disabled={busy}
+							>
+								<Play className="h-3.5 w-3.5" />
+								Enable
+							</Button>
+						)}
+						<Button
+							type="button"
+							size="sm"
+							variant="destructive"
+							className="h-8 gap-1.5 text-xs"
+							onClick={() => onDelete(apiKey)}
+							disabled={busy}
+						>
+							<Trash2 className="h-3.5 w-3.5" />
+							Delete
+						</Button>
+					</div>
+				</TabsContent>
+
+				<TabsContent value="history">
+					<ApiRequestHistory apiKeyId={apiKey.id} apiKeyName={apiKey.name} />
+				</TabsContent>
+			</Tabs>
 		</div>
 	);
 }

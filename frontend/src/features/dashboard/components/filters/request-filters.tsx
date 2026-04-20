@@ -8,9 +8,11 @@ import type { FilterState } from "@/features/dashboard/schemas";
 
 export type RequestFiltersProps = {
   filters: FilterState;
-  accountOptions: MultiSelectOption[];
+  accountOptions?: MultiSelectOption[];
   modelOptions: MultiSelectOption[];
   statusOptions: MultiSelectOption[];
+  showAccountFilter?: boolean;
+  searchPlaceholder?: string;
   onSearchChange: (value: string) => void;
   onTimeframeChange: (value: FilterState["timeframe"]) => void;
   onAccountChange: (values: string[]) => void;
@@ -21,9 +23,11 @@ export type RequestFiltersProps = {
 
 export function RequestFilters({
   filters,
-  accountOptions,
+  accountOptions = [],
   modelOptions,
   statusOptions,
+  showAccountFilter = true,
+  searchPlaceholder = "Search request id, account, model, error...",
   onSearchChange,
   onTimeframeChange,
   onAccountChange,
@@ -40,7 +44,7 @@ export function RequestFilters({
             value={filters.search}
             onChange={(event) => onSearchChange(event.target.value)}
             className="h-8 pl-9"
-            placeholder="Search request id, account, model, error..."
+            placeholder={searchPlaceholder}
           />
         </div>
 
@@ -48,12 +52,14 @@ export function RequestFilters({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <MultiSelectFilter
-          label="Accounts"
-          values={filters.accountIds}
-          options={accountOptions}
-          onChange={onAccountChange}
-        />
+        {showAccountFilter ? (
+          <MultiSelectFilter
+            label="Accounts"
+            values={filters.accountIds}
+            options={accountOptions}
+            onChange={onAccountChange}
+          />
+        ) : null}
         <MultiSelectFilter
           label="Models"
           values={filters.modelOptions}

@@ -4,7 +4,12 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import App from "@/App";
-import { createApiKey, createApiKeyUsage7Day } from "@/test/mocks/factories";
+import {
+	createApiKey,
+	createApiKeyUsage7Day,
+	createRequestLogFilterOptions,
+	createRequestLogsResponse,
+} from "@/test/mocks/factories";
 import { server } from "@/test/mocks/server";
 import { renderWithProviders } from "@/test/utils";
 
@@ -174,5 +179,129 @@ describe("apis page integration", () => {
 		expect(await screen.findByText(/3K cached/)).toBeInTheDocument();
 		expect(await screen.findByText(/42 req/)).toBeInTheDocument();
 		expect(await screen.findByText(/\$0.42/)).toBeInTheDocument();
+	});
+
+	it("renders key-scoped history in the detail panel and preserves the history view when switching keys", async () => {
+		window.history.pushState({}, "", "/apis?selected=key_2&view=history");
+		const user = userEvent.setup();
+		const requestLogApiKeyIds: string[] = [];
+		const optionApiKeyIds: string[] = [];
+
+		server.use(
+			http.get("/api/api-keys/", () =>
+				HttpResponse.json([
+					createApiKey({ id: "key_1", name: "Default key" }),
+					createApiKey({ id: "key_2", name: "Read only key" }),
+				]),
+			),
+			http.get("/api/request-logs", ({ request }) => {
+				const url = new URL(request.url);
+				const apiKeyId = url.searchParams.get("apiKeyId") ?? "";
+				requestLogApiKeyIds.push(apiKeyId);
+				const statusFilters = new Set(url.searchParams.getAll("status"));
+				const search = (url.searchParams.get("search") ?? "").toLowerCase();
+				const requestsByKey = {
+					key_1: [
+						{
+							requestedAt: "2026-01-01T00:00:00Z",
+							accountId: "acc_primary",
+							apiKeyName: "Default key",
+							requestId: "req_default_1",
+							model: "gpt-5.1",
+							transport: "http",
+							serviceTier: null,
+							requestedServiceTier: null,
+							actualServiceTier: null,
+							status: "error",
+							errorCode: "upstream_error",
+							errorMessage: "Default key failure",
+							tokens: 1800,
+							cachedInputTokens: 320,
+							reasoningEffort: null,
+							costUsd: 0.0132,
+							latencyMs: 920,
+						},
+					],
+					key_2: [
+						{
+							requestedAt: "2026-01-01T00:00:00Z",
+							accountId: "acc_secondary",
+							apiKeyName: "Read only key",
+							requestId: "req_read_only_1",
+							model: "gpt-5.1",
+							transport: "http",
+							serviceTier: null,
+							requestedServiceTier: null,
+							actualServiceTier: null,
+							status: "error",
+							errorCode: "rate_limit_exceeded",
+							errorMessage: "History-only failure",
+							tokens: 0,
+							cachedInputTokens: null,
+							reasoningEffort: null,
+							costUsd: 0,
+							latencyMs: 120,
+						},
+					],
+				}[apiKeyId as "key_1" | "key_2"] ?? [];
+				const filtered = requestsByKey.filter((entry) => {
+					if (statusFilters.size > 0 && !statusFilters.has(entry.status)) {
+						return false;
+					}
+					if (search && !entry.errorMessage.toLowerCase().includes(search)) {
+						return false;
+					}
+					return true;
+				});
+				return HttpResponse.json(
+					createRequestLogsResponse(filtered, filtered.length, false),
+				);
+			}),
+			http.get("/api/request-logs/options", ({ request }) => {
+				const url = new URL(request.url);
+				optionApiKeyIds.push(url.searchParams.get("apiKeyId") ?? "");
+				return HttpResponse.json(
+					createRequestLogFilterOptions({
+						accountIds: [],
+						modelOptions: [{ model: "gpt-5.1", reasoningEffort: null }],
+						statuses: ["error"],
+					}),
+				);
+			}),
+		);
+
+		renderWithProviders(<App />);
+
+		expect(await screen.findByRole("heading", { name: "Read only key" })).toBeInTheDocument();
+		expect(screen.getByRole("tab", { name: "History" })).toHaveAttribute("data-state", "active");
+		expect(await screen.findByText("Scoped to Read only key")).toBeInTheDocument();
+		expect(await screen.findByText("History-only failure")).toBeInTheDocument();
+		expect(screen.getByText("secondary@example.com")).toBeInTheDocument();
+		expect(screen.queryByText("Default key failure")).not.toBeInTheDocument();
+
+		await user.click(screen.getByRole("button", { name: "Statuses" }));
+		await user.click(screen.getByRole("menuitemcheckbox", { name: "Error" }));
+		await user.keyboard("{Escape}");
+		expect(await screen.findByText("History-only failure")).toBeInTheDocument();
+
+		const search = screen.getByPlaceholderText("Search request id, model, error...");
+		await user.type(search, "history-only");
+		expect(await screen.findByText("History-only failure")).toBeInTheDocument();
+
+		await user.click(screen.getByRole("button", { name: "View Details" }));
+		const dialog = await screen.findByRole("dialog", { name: "Request Details" });
+		expect(within(dialog).getByText("req_read_only_1")).toBeInTheDocument();
+
+		await user.click(getDialogFooterClose(dialog));
+		await user.click(screen.getByRole("button", { name: /Default key/i }));
+
+		expect(await screen.findByRole("heading", { name: "Default key" })).toBeInTheDocument();
+		expect(screen.getByRole("tab", { name: "History" })).toHaveAttribute("data-state", "active");
+		expect(await screen.findByText("Scoped to Default key")).toBeInTheDocument();
+
+		expect(requestLogApiKeyIds).toContain("key_2");
+		expect(requestLogApiKeyIds).toContain("key_1");
+		expect(optionApiKeyIds).toContain("key_2");
+		expect(optionApiKeyIds).toContain("key_1");
 	});
 });

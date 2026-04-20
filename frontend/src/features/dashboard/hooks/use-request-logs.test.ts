@@ -5,7 +5,10 @@ import { createElement, type PropsWithChildren, useEffect } from "react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
-import { useRequestLogs } from "@/features/dashboard/hooks/use-request-logs";
+import {
+  useRequestLogs,
+  useRequestLogsWithOptions,
+} from "@/features/dashboard/hooks/use-request-logs";
 import { server } from "@/test/mocks/server";
 
 function createTestQueryClient(): QueryClient {
@@ -204,5 +207,44 @@ describe("useRequestLogs", () => {
 
     await waitFor(() => expect(result.current.filters.statuses).toEqual(["ok"]));
     await waitFor(() => expect(statusesPerCall[statusesPerCall.length - 1]).toEqual(["ok"]));
+  });
+
+  it("includes apiKeyId in request-log and options queries when scoped", async () => {
+    const apiKeyIdsPerLogsCall: string[] = [];
+    const apiKeyIdsPerOptionsCall: string[] = [];
+
+    server.use(
+      http.get("/api/request-logs", ({ request }) => {
+        const url = new URL(request.url);
+        apiKeyIdsPerLogsCall.push(url.searchParams.get("apiKeyId") ?? "");
+        return HttpResponse.json({
+          requests: [],
+          total: 0,
+          hasMore: false,
+        });
+      }),
+      http.get("/api/request-logs/options", ({ request }) => {
+        const url = new URL(request.url);
+        apiKeyIdsPerOptionsCall.push(url.searchParams.get("apiKeyId") ?? "");
+        return HttpResponse.json({
+          accountIds: [],
+          modelOptions: [],
+          statuses: [],
+        });
+      }),
+    );
+
+    const queryClient = createTestQueryClient();
+    const wrapper = createWrapper(queryClient, "/apis?selected=key_1&view=history");
+    const { result } = renderHook(
+      () => useRequestLogsWithOptions({ apiKeyId: "key_1" }),
+      { wrapper },
+    );
+
+    await waitFor(() => expect(result.current.logsQuery.isSuccess).toBe(true));
+    await waitFor(() => expect(result.current.optionsQuery.isSuccess).toBe(true));
+
+    expect(apiKeyIdsPerLogsCall).toContain("key_1");
+    expect(apiKeyIdsPerOptionsCall).toContain("key_1");
   });
 });

@@ -41,6 +41,7 @@ async def list_request_logs(
     limit: int = Query(50, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     search: str | None = Query(default=None),
+    api_key_id: str | None = Query(default=None, alias="apiKeyId"),
     account_id: list[str] | None = Query(default=None, alias="accountId"),
     status: list[str] | None = Query(default=None),
     model: list[str] | None = Query(default=None),
@@ -60,6 +61,7 @@ async def list_request_logs(
         search=search,
         since=since,
         until=until,
+        api_key_id=api_key_id,
         account_ids=account_id,
         model_options=parsed_options,
         models=model,
@@ -76,6 +78,7 @@ async def list_request_logs(
 @router.get("/options", response_model=RequestLogFilterOptionsResponse)
 async def list_request_log_filter_options(
     status: list[str] | None = Query(default=None),
+    api_key_id: str | None = Query(default=None, alias="apiKeyId"),
     account_id: list[str] | None = Query(default=None, alias="accountId"),
     model: list[str] | None = Query(default=None),
     reasoning_effort: list[str] | None = Query(default=None, alias="reasoningEffort"),
@@ -92,6 +95,7 @@ async def list_request_log_filter_options(
     options = await context.service.list_filter_options(
         since=since,
         until=until,
+        api_key_id=api_key_id,
         account_ids=account_id,
         model_options=parsed_options,
         models=model,

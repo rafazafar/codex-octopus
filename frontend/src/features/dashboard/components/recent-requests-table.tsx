@@ -61,6 +61,8 @@ export type RecentRequestsTableProps = {
   limit: number;
   offset: number;
   hasMore: boolean;
+  emptyTitle?: string;
+  emptyDescription?: string;
   onLimitChange: (limit: number) => void;
   onOffsetChange: (offset: number) => void;
 };
@@ -72,6 +74,8 @@ export function RecentRequestsTable({
   limit,
   offset,
   hasMore,
+  emptyTitle = "No request logs",
+  emptyDescription = "No request logs match the current filters.",
   onLimitChange,
   onOffsetChange,
 }: RecentRequestsTableProps) {
@@ -102,8 +106,8 @@ export function RecentRequestsTable({
     return (
       <EmptyState
         icon={Inbox}
-        title="No request logs"
-        description="No request logs match the current filters."
+        title={emptyTitle}
+        description={emptyDescription}
       />
     );
   }
