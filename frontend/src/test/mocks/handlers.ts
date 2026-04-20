@@ -280,6 +280,10 @@ export const handlers = [
 		return HttpResponse.json({ status: "ok" });
 	}),
 
+	http.get("/health/ready", () => {
+		return HttpResponse.json({ status: "ok" });
+	}),
+
 	http.get("/api/dashboard/overview", () => {
 		return HttpResponse.json(
 			createDashboardOverview({
@@ -455,6 +459,36 @@ export const handlers = [
 
 	http.get("/api/settings", () => {
 		return HttpResponse.json(state.settings);
+	}),
+
+	http.get("/api/settings/runtime/connect-address", () => {
+		return HttpResponse.json({ connectAddress: "codex-lb.internal" });
+	}),
+
+	http.get("/v1/models", ({ request }) => {
+		const authHeader = request.headers.get("authorization");
+		if (state.settings.apiKeyAuthEnabled && !authHeader) {
+			return HttpResponse.json(
+				{ error: { code: "invalid_api_key", message: "API key required" } },
+				{ status: 401 },
+			);
+		}
+		return HttpResponse.json({
+			models: [{ id: "gpt-5.4" }, { id: "gpt-5.4-mini" }],
+		});
+	}),
+
+	http.get("/backend-api/codex/models", ({ request }) => {
+		const authHeader = request.headers.get("authorization");
+		if (state.settings.apiKeyAuthEnabled && !authHeader) {
+			return HttpResponse.json(
+				{ error: { code: "invalid_api_key", message: "API key required" } },
+				{ status: 401 },
+			);
+		}
+		return HttpResponse.json({
+			models: [{ slug: "gpt-5.4" }, { slug: "gpt-5.4-mini" }],
+		});
 	}),
 
 	http.get("/api/firewall/ips", () => {

@@ -2,21 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { CopyButton } from "@/components/copy-button";
 import { getRuntimeConnectAddress } from "@/features/accounts/api";
-
-const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
-
-function resolveConnectAddress(hostname: string, runtimeAddress: string | null): string {
-  const normalizedRuntimeAddress = runtimeAddress?.trim() ?? "";
-  if (normalizedRuntimeAddress) {
-    return normalizedRuntimeAddress;
-  }
-
-  const normalized = hostname.trim().toLowerCase();
-  if (!normalized || LOOPBACK_HOSTS.has(normalized)) {
-    return "<codex-lb-ip-or-dns>";
-  }
-  return hostname;
-}
+import { resolveRuntimeConnectAddress } from "@/lib/runtime-connect-address";
 
 export function WindowsOauthHelp() {
   const runtimeHost = typeof window !== "undefined" ? window.location.hostname : "";
@@ -43,7 +29,7 @@ export function WindowsOauthHelp() {
   }, []);
 
   const connectAddress = useMemo(
-    () => resolveConnectAddress(runtimeHost, runtimeConnectAddress),
+    () => resolveRuntimeConnectAddress(runtimeHost, runtimeConnectAddress),
     [runtimeHost, runtimeConnectAddress],
   );
 
