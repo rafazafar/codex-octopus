@@ -60,6 +60,7 @@ from app.modules.proxy.ring_membership import (
 from app.modules.request_logs import api as request_logs_api
 from app.modules.settings import api as settings_api
 from app.modules.sticky_sessions import api as sticky_sessions_api
+from app.modules.system_health import api as system_health_api
 from app.modules.sticky_sessions.cleanup_scheduler import build_sticky_session_cleanup_scheduler
 from app.modules.usage import api as usage_api
 from app.modules.usage.additional_quota_keys import reload_additional_quota_registry
@@ -359,6 +360,7 @@ def create_app() -> FastAPI:
     app.include_router(audit_api.router)
     app.include_router(accounts_api.router)
     app.include_router(dashboard_api.router)
+    app.include_router(system_health_api.router)
     app.include_router(usage_api.router)
     app.include_router(request_logs_api.router)
     app.include_router(oauth_api.router)

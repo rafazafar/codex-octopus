@@ -36,6 +36,8 @@ from app.modules.request_logs.service import RequestLogsService
 from app.modules.settings.repository import SettingsRepository
 from app.modules.settings.service import SettingsService
 from app.modules.sticky_sessions.service import StickySessionsService
+from app.modules.system_health.repository import SystemHealthRepository
+from app.modules.system_health.service import SystemHealthService
 from app.modules.usage.repository import AdditionalUsageRepository, UsageRepository
 from app.modules.usage.service import UsageService
 
@@ -104,6 +106,13 @@ class DashboardContext:
     session: AsyncSession
     repository: DashboardRepository
     service: DashboardService
+
+
+@dataclass(slots=True)
+class SystemHealthContext:
+    session: AsyncSession
+    repository: SystemHealthRepository
+    service: SystemHealthService
 
 
 @dataclass(slots=True)
@@ -252,6 +261,14 @@ def get_dashboard_context(
     repository = DashboardRepository(session)
     service = DashboardService(repository)
     return DashboardContext(session=session, repository=repository, service=service)
+
+
+def get_system_health_context(
+    session: AsyncSession = Depends(get_session),
+) -> SystemHealthContext:
+    repository = SystemHealthRepository(session)
+    service = SystemHealthService(repository)
+    return SystemHealthContext(session=session, repository=repository, service=service)
 
 
 def get_firewall_context(
