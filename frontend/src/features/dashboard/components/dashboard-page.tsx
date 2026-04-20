@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 
 import { AlertMessage } from "@/components/alert-message";
+import { SystemHealthDetail } from "@/features/system-health/components/system-health-detail";
 import { useAccountMutations } from "@/features/accounts/hooks/use-accounts";
 import { AccountCards } from "@/features/dashboard/components/account-cards";
 import { DashboardSkeleton } from "@/features/dashboard/components/dashboard-skeleton";
@@ -14,6 +15,7 @@ import { StatsGrid } from "@/features/dashboard/components/stats-grid";
 import { UsageDonuts } from "@/features/dashboard/components/usage-donuts";
 import { useDashboard } from "@/features/dashboard/hooks/use-dashboard";
 import { useRequestLogs } from "@/features/dashboard/hooks/use-request-logs";
+import { useSystemHealth } from "@/features/system-health/hooks/use-system-health";
 import { buildDashboardView } from "@/features/dashboard/utils";
 import {
   DEFAULT_OVERVIEW_TIMEFRAME,
@@ -37,6 +39,7 @@ export function DashboardPage() {
     [searchParams],
   );
   const dashboardQuery = useDashboard(overviewTimeframe);
+  const systemHealthQuery = useSystemHealth();
   const { filters, logsQuery, optionsQuery, updateFilters } = useRequestLogs();
   const { resumeMutation } = useAccountMutations();
 
@@ -126,6 +129,10 @@ export function DashboardPage() {
     (logsQuery.error instanceof Error && logsQuery.error.message) ||
     (optionsQuery.error instanceof Error && optionsQuery.error.message) ||
     null;
+  const activeSystemHealthAlert =
+    systemHealthQuery.data?.alert && searchParams.get("systemHealth") === systemHealthQuery.data.alert.code
+      ? systemHealthQuery.data.alert
+      : null;
 
   return (
     <div className="animate-fade-in-up space-y-8">
@@ -155,6 +162,7 @@ export function DashboardPage() {
       </div>
 
       {errorMessage ? <AlertMessage variant="error">{errorMessage}</AlertMessage> : null}
+      {activeSystemHealthAlert ? <SystemHealthDetail alert={activeSystemHealthAlert} /> : null}
 
       {!view ? (
         <DashboardSkeleton />

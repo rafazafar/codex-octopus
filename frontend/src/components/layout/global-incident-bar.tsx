@@ -17,6 +17,8 @@ export function GlobalIncidentBar() {
     return null;
   }
 
+  const alertHref = buildAlertHref(alert.href, alert.code);
+
   return (
     <div className="sticky top-[53px] z-10 border-b bg-background/90 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/70 sm:px-6">
       <div
@@ -33,7 +35,7 @@ export function GlobalIncidentBar() {
           </div>
         </div>
         <Link
-          to={alert.href}
+          to={alertHref}
           className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium hover:bg-black/5 dark:hover:bg-white/10"
         >
           View
@@ -42,4 +44,9 @@ export function GlobalIncidentBar() {
       </div>
     </div>
   );
+}
+
+function buildAlertHref(href: string, code: string): string {
+  const separator = href.includes("?") ? "&" : "?";
+  return `${href}${separator}systemHealth=${encodeURIComponent(code)}`;
 }

@@ -36,6 +36,6 @@ describe("GlobalIncidentBar", () => {
 
     expect(await findByText("Rate limit wave detected")).toBeInTheDocument();
     expect(await findByText("Rate limiting is affecting a large share of recent traffic.")).toBeInTheDocument();
-    expect(await findByText("View")).toHaveAttribute("href", "/dashboard");
+    expect(await findByText("View")).toHaveAttribute("href", "/dashboard?systemHealth=rate_limit_wave");
   });
 });

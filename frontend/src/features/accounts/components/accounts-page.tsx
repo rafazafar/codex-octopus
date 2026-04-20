@@ -11,6 +11,8 @@ import { AccountsSkeleton } from "@/features/accounts/components/accounts-skelet
 import { ImportDialog } from "@/features/accounts/components/import-dialog";
 import { useAccounts } from "@/features/accounts/hooks/use-accounts";
 import { useOauth } from "@/features/accounts/hooks/use-oauth";
+import { SystemHealthDetail } from "@/features/system-health/components/system-health-detail";
+import { useSystemHealth } from "@/features/system-health/hooks/use-system-health";
 import { buildDuplicateAccountIdSet } from "@/utils/account-identifiers";
 import { getErrorMessageOrNull } from "@/utils/errors";
 
@@ -29,6 +31,7 @@ export function AccountsPage() {
     deleteMutation,
   } = useAccounts();
   const oauth = useOauth();
+  const systemHealthQuery = useSystemHealth();
 
   const importDialog = useDialogState();
   const oauthDialog = useDialogState();
@@ -73,6 +76,10 @@ export function AccountsPage() {
     getErrorMessageOrNull(pauseMutation.error) ||
     getErrorMessageOrNull(resumeMutation.error) ||
     getErrorMessageOrNull(deleteMutation.error);
+  const activeSystemHealthAlert =
+    systemHealthQuery.data?.alert && searchParams.get("systemHealth") === systemHealthQuery.data.alert.code
+      ? systemHealthQuery.data.alert
+      : null;
 
   return (
     <div className="animate-fade-in-up space-y-6">
@@ -85,6 +92,7 @@ export function AccountsPage() {
       </div>
 
       {mutationError ? <AlertMessage variant="error">{mutationError}</AlertMessage> : null}
+      {activeSystemHealthAlert ? <SystemHealthDetail alert={activeSystemHealthAlert} /> : null}
 
       {!accountsQuery.data ? (
         <AccountsSkeleton />
