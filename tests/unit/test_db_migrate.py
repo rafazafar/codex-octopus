@@ -233,6 +233,272 @@ def test_request_logs_transport_stays_in_additive_migration_chain(tmp_path: Path
         assert "transport" in columns
 
 
+def test_request_logs_response_lookup_migration_handles_preexisting_session_id_column(tmp_path: Path) -> None:
+    db_path = tmp_path / "request-logs-session-id-drift.db"
+    url = _db_url(db_path)
+    pre_revision = "20260413_000000_add_accounts_blocked_at"
+    target_revision = "20260415_160000_add_request_logs_response_lookup_index"
+
+    run_upgrade(url, pre_revision, bootstrap_legacy=False)
+
+    sync_url = to_sync_database_url(url)
+    with create_engine(sync_url, future=True).connect() as connection:
+        columns = {column["name"] for column in inspect(connection).get_columns("request_logs")}
+        assert "session_id" not in columns
+        connection.execute(text("ALTER TABLE request_logs ADD COLUMN session_id VARCHAR"))
+        connection.commit()
+
+    result = run_upgrade(url, target_revision, bootstrap_legacy=False)
+    assert result.current_revision == target_revision
+
+    with create_engine(sync_url, future=True).connect() as connection:
+        columns = {column["name"] for column in inspect(connection).get_columns("request_logs")}
+        assert "session_id" in columns
+        index_names = {index["name"] for index in inspect(connection).get_indexes("request_logs")}
+        assert "idx_logs_request_status_api_key_time" in index_names
+        assert "idx_logs_request_status_api_key_session_time" in index_names
+
+
+def test_automation_run_cycle_snapshot_migration_normalizes_legacy_manual_keys(tmp_path: Path) -> None:
+    db_path = tmp_path / "automation-cycle-snapshots.db"
+    url = _db_url(db_path)
+    pre_revision = "20260419_000000_add_automation_run_cycle_metadata"
+    target_revision = "20260419_020000_add_automation_run_cycles_snapshot_tables"
+
+    run_upgrade(url, pre_revision, bootstrap_legacy=False)
+
+    sync_url = to_sync_database_url(url)
+    created_at = datetime(2026, 4, 19, 3, 0, 0)
+    with create_engine(sync_url, future=True).begin() as connection:
+        connection.execute(
+            text(
+                """
+                INSERT INTO accounts (
+                    id,
+                    email,
+                    plan_type,
+                    access_token_encrypted,
+                    refresh_token_encrypted,
+                    id_token_encrypted,
+                    last_refresh,
+                    status,
+                    deactivation_reason,
+                    chatgpt_account_id,
+                    reset_at
+                ) VALUES (
+                    :id,
+                    :email,
+                    :plan_type,
+                    :access_token_encrypted,
+                    :refresh_token_encrypted,
+                    :id_token_encrypted,
+                    :last_refresh,
+                    :status,
+                    :deactivation_reason,
+                    :chatgpt_account_id,
+                    :reset_at
+                )
+                """
+            ),
+            [
+                {
+                    "id": "acc_snapshot_a",
+                    "email": "snapshot-a@example.com",
+                    "plan_type": "plus",
+                    "access_token_encrypted": b"access-a",
+                    "refresh_token_encrypted": b"refresh-a",
+                    "id_token_encrypted": b"id-a",
+                    "last_refresh": created_at,
+                    "status": "active",
+                    "deactivation_reason": None,
+                    "chatgpt_account_id": None,
+                    "reset_at": None,
+                },
+                {
+                    "id": "acc_snapshot_b",
+                    "email": "snapshot-b@example.com",
+                    "plan_type": "plus",
+                    "access_token_encrypted": b"access-b",
+                    "refresh_token_encrypted": b"refresh-b",
+                    "id_token_encrypted": b"id-b",
+                    "last_refresh": created_at,
+                    "status": "active",
+                    "deactivation_reason": None,
+                    "chatgpt_account_id": None,
+                    "reset_at": None,
+                },
+            ],
+        )
+        connection.execute(
+            text(
+                """
+                INSERT INTO automation_jobs (
+                    id,
+                    name,
+                    enabled,
+                    schedule_type,
+                    schedule_time,
+                    schedule_timezone,
+                    schedule_days,
+                    schedule_threshold_minutes,
+                    include_paused_accounts,
+                    model,
+                    reasoning_effort,
+                    prompt,
+                    created_at,
+                    updated_at
+                ) VALUES (
+                    :id,
+                    :name,
+                    :enabled,
+                    :schedule_type,
+                    :schedule_time,
+                    :schedule_timezone,
+                    :schedule_days,
+                    :schedule_threshold_minutes,
+                    :include_paused_accounts,
+                    :model,
+                    :reasoning_effort,
+                    :prompt,
+                    :created_at,
+                    :updated_at
+                )
+                """
+            ),
+            {
+                "id": "job_snapshot",
+                "name": "Snapshot job",
+                "enabled": True,
+                "schedule_type": "daily",
+                "schedule_time": "05:00",
+                "schedule_timezone": "UTC",
+                "schedule_days": "mon,tue,wed,thu,fri,sat,sun",
+                "schedule_threshold_minutes": 5,
+                "include_paused_accounts": False,
+                "model": "gpt-5.4-mini",
+                "reasoning_effort": None,
+                "prompt": "ping",
+                "created_at": created_at,
+                "updated_at": created_at,
+            },
+        )
+        connection.execute(
+            text(
+                """
+                INSERT INTO automation_runs (
+                    id,
+                    job_id,
+                    trigger,
+                    slot_key,
+                    cycle_key,
+                    cycle_expected_accounts,
+                    cycle_window_end,
+                    scheduled_for,
+                    started_at,
+                    finished_at,
+                    status,
+                    account_id,
+                    error_code,
+                    error_message,
+                    attempt_count,
+                    created_at
+                ) VALUES (
+                    :id,
+                    :job_id,
+                    :trigger,
+                    :slot_key,
+                    :cycle_key,
+                    :cycle_expected_accounts,
+                    :cycle_window_end,
+                    :scheduled_for,
+                    :started_at,
+                    :finished_at,
+                    :status,
+                    :account_id,
+                    :error_code,
+                    :error_message,
+                    :attempt_count,
+                    :created_at
+                )
+                """
+            ),
+            [
+                {
+                    "id": "run_snapshot_a",
+                    "job_id": "job_snapshot",
+                    "trigger": "manual",
+                    "slot_key": "manual:job_snapshot:cycle-1:digest-a",
+                    "cycle_key": "manual:job_snapshot:cycle-1:digest-a",
+                    "cycle_expected_accounts": 0,
+                    "cycle_window_end": created_at + timedelta(minutes=5),
+                    "scheduled_for": created_at,
+                    "started_at": created_at,
+                    "finished_at": created_at + timedelta(seconds=5),
+                    "status": "success",
+                    "account_id": "acc_snapshot_a",
+                    "error_code": None,
+                    "error_message": None,
+                    "attempt_count": 0,
+                    "created_at": created_at,
+                },
+                {
+                    "id": "run_snapshot_b",
+                    "job_id": "job_snapshot",
+                    "trigger": "manual",
+                    "slot_key": "manual:job_snapshot:cycle-1:digest-b",
+                    "cycle_key": "manual:job_snapshot:cycle-1:digest-b",
+                    "cycle_expected_accounts": 99,
+                    "cycle_window_end": created_at + timedelta(minutes=5),
+                    "scheduled_for": created_at + timedelta(minutes=1),
+                    "started_at": created_at + timedelta(minutes=1),
+                    "finished_at": created_at + timedelta(minutes=1, seconds=5),
+                    "status": "success",
+                    "account_id": "acc_snapshot_b",
+                    "error_code": None,
+                    "error_message": None,
+                    "attempt_count": 0,
+                    "created_at": created_at + timedelta(minutes=1),
+                },
+            ],
+        )
+
+    result = run_upgrade(url, target_revision, bootstrap_legacy=False)
+    assert result.current_revision == target_revision
+
+    with create_engine(sync_url, future=True).connect() as connection:
+        cycle_rows = connection.execute(
+            text(
+                """
+                SELECT cycle_key, job_id, trigger, cycle_expected_accounts
+                FROM automation_run_cycles
+                ORDER BY cycle_key
+                """
+            )
+        ).all()
+        assert cycle_rows == [("manual:job_snapshot:cycle-1", "job_snapshot", "manual", 2)]
+
+        account_rows = connection.execute(
+            text(
+                """
+                SELECT cycle_key, account_id, position, scheduled_for
+                FROM automation_run_cycle_accounts
+                ORDER BY cycle_key, position
+                """
+            )
+        ).all()
+        normalized_account_rows = [
+            (
+                cycle_key,
+                account_id,
+                position,
+                datetime.fromisoformat(scheduled_for) if isinstance(scheduled_for, str) else scheduled_for,
+            )
+            for cycle_key, account_id, position, scheduled_for in account_rows
+        ]
+        assert normalized_account_rows == [
+            ("manual:job_snapshot:cycle-1", "acc_snapshot_a", 0, created_at),
+            ("manual:job_snapshot:cycle-1", "acc_snapshot_b", 1, created_at + timedelta(minutes=1)),
+        ]
 def test_check_schema_drift_detects_rogue_table(tmp_path: Path) -> None:
     db_path = tmp_path / "drift.db"
     url = _db_url(db_path)

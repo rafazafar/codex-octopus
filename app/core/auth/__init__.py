@@ -35,12 +35,14 @@ class OpenAIAuthClaims(BaseModel):
 
     chatgpt_account_id: str | None = None
     chatgpt_plan_type: str | None = None
+    user_id: str | None = None
 
 
 class IdTokenClaims(BaseModel):
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     email: str | None = None
+    sub: str | None = None
     chatgpt_account_id: str | None = None
     chatgpt_plan_type: str | None = None
     exp: int | float | str | None = None

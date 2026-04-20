@@ -1,30 +1,34 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from datetime import timedelta
 from typing import cast
 
 from pydantic import ValidationError
 
 from app.core.auth import (
-    DEFAULT_EMAIL,
-    DEFAULT_PLAN,
-    claims_from_auth,
     generate_unique_account_id,
-    parse_auth_json,
 )
 from app.core.auth.api_key_cache import get_api_key_cache
 from app.core.cache.invalidation import NAMESPACE_API_KEY, get_cache_invalidation_poller
 from app.core.crypto import TokenEncryptor
-from app.core.plan_types import coerce_account_plan_type
-from app.core.utils.time import naive_utc_to_epoch, to_utc_naive, utcnow
+from app.core.utils.time import naive_utc_to_epoch, utcnow
 from app.db.models import Account, AccountStatus
+from app.modules.accounts.portable import (
+    PortableAccountBatch,
+    PortableImportFormat,
+    build_portable_export_account,
+    parse_portable_account_batch,
+)
 from app.modules.accounts.mappers import build_account_summaries, build_account_usage_trends
 from app.modules.accounts.repository import AccountsRepository
 from app.modules.accounts.schemas import (
     AccountAdditionalQuota,
     AccountAdditionalWindow,
     AccountImportResponse,
+    AccountImportFormat,
+    ImportedAccountSummary,
     AccountRequestUsage,
     AccountSummary,
     AccountTrendsResponse,
@@ -40,6 +44,13 @@ _DETAIL_BUCKET_SECONDS = 3600  # 1h → 168 points
 
 class InvalidAuthJsonError(Exception):
     pass
+
+
+class AccountExportBundle:
+    def __init__(self, *, filename: str, payload: bytes, exported_count: int) -> None:
+        self.filename = filename
+        self.payload = payload
+        self.exported_count = exported_count
 
 
 class AccountsService:
@@ -144,40 +155,58 @@ class AccountsService:
 
     async def import_account(self, raw: bytes) -> AccountImportResponse:
         try:
-            auth = parse_auth_json(raw)
+            batch = parse_portable_account_batch(raw)
         except (json.JSONDecodeError, ValidationError, UnicodeDecodeError, TypeError) as exc:
             raise InvalidAuthJsonError("Invalid auth.json payload") from exc
-        claims = claims_from_auth(auth)
-
-        email = claims.email or DEFAULT_EMAIL
-        raw_account_id = claims.account_id
-        account_id = generate_unique_account_id(raw_account_id, email)
-        plan_type = coerce_account_plan_type(claims.plan_type, DEFAULT_PLAN)
-        last_refresh = to_utc_naive(auth.last_refresh_at) if auth.last_refresh_at else utcnow()
-
-        account = Account(
-            id=account_id,
-            chatgpt_account_id=raw_account_id,
-            email=email,
-            plan_type=plan_type,
-            access_token_encrypted=self._encryptor.encrypt(auth.tokens.access_token),
-            refresh_token_encrypted=self._encryptor.encrypt(auth.tokens.refresh_token),
-            id_token_encrypted=self._encryptor.encrypt(auth.tokens.id_token),
-            last_refresh=last_refresh,
-            status=AccountStatus.ACTIVE,
-            deactivation_reason=None,
-        )
-
-        saved = await self._repo.upsert(account)
-        if self._usage_repo and self._usage_updater:
+        saved_accounts = await self._persist_import_batch(batch)
+        if saved_accounts and self._usage_repo and self._usage_updater:
             latest_usage = await self._usage_repo.latest_by_account(window="primary")
-            await self._usage_updater.refresh_accounts([saved], latest_usage)
-        get_account_selection_cache().invalidate()
-        return AccountImportResponse(
-            account_id=saved.id,
-            email=saved.email,
-            plan_type=saved.plan_type,
-            status=saved.status,
+            await self._usage_updater.refresh_accounts(saved_accounts, latest_usage)
+        if saved_accounts:
+            get_account_selection_cache().invalidate()
+        imported_accounts = [
+            ImportedAccountSummary(
+                account_id=saved.id,
+                email=saved.email,
+                plan_type=saved.plan_type,
+                status=saved.status,
+            )
+            for saved in saved_accounts
+        ]
+        response = AccountImportResponse(
+            format=_response_import_format(batch.format),
+            imported_count=len(imported_accounts),
+            accounts=imported_accounts,
+        )
+        if len(imported_accounts) == 1:
+            imported = imported_accounts[0]
+            response.account_id = imported.account_id
+            response.email = imported.email
+            response.plan_type = imported.plan_type
+            response.status = imported.status
+        return response
+
+    async def export_accounts(self) -> AccountExportBundle:
+        accounts = await self._repo.list_accounts()
+        payload = [
+            build_portable_export_account(
+                stored_account_id=account.id,
+                email=account.email,
+                plan_type=account.plan_type,
+                raw_account_id=account.chatgpt_account_id,
+                id_token=self._encryptor.decrypt(account.id_token_encrypted),
+                access_token=self._encryptor.decrypt(account.access_token_encrypted),
+                refresh_token=self._encryptor.decrypt(account.refresh_token_encrypted),
+                created_at=account.created_at,
+                last_refresh_at=account.last_refresh,
+            ).model_dump(mode="json")
+            for account in accounts
+        ]
+        filename = f"codex_accounts_{date.today().isoformat()}.json"
+        return AccountExportBundle(
+            filename=filename,
+            payload=json.dumps(payload, separators=(",", ":"), ensure_ascii=True).encode("utf-8"),
+            exported_count=len(payload),
         )
 
     async def reactivate_account(self, account_id: str) -> bool:
@@ -201,3 +230,31 @@ class AccountsService:
             if poller is not None:
                 await poller.bump(NAMESPACE_API_KEY)
         return result
+
+    async def _persist_import_batch(self, batch: PortableAccountBatch) -> list[Account]:
+        saved_accounts: list[Account] = []
+        async with self._repo.transaction():
+            for portable_account in batch.accounts:
+                email = portable_account.email
+                raw_account_id = portable_account.raw_account_id
+                account_id = generate_unique_account_id(raw_account_id, email)
+                account = Account(
+                    id=account_id,
+                    chatgpt_account_id=raw_account_id,
+                    email=email,
+                    plan_type=portable_account.plan_type,
+                    access_token_encrypted=self._encryptor.encrypt(portable_account.access_token),
+                    refresh_token_encrypted=self._encryptor.encrypt(portable_account.refresh_token),
+                    id_token_encrypted=self._encryptor.encrypt(portable_account.id_token),
+                    last_refresh=portable_account.last_refresh_at or utcnow(),
+                    status=AccountStatus.ACTIVE,
+                    deactivation_reason=None,
+                )
+                saved_accounts.append(await self._repo.upsert(account, commit=False))
+        return saved_accounts
+
+
+def _response_import_format(format_value: PortableImportFormat) -> AccountImportFormat:
+    if format_value is PortableImportFormat.PORTABLE_JSON:
+        return AccountImportFormat.PORTABLE_JSON
+    return AccountImportFormat.AUTH_JSON

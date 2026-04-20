@@ -9,6 +9,8 @@ Resources
 -->
 
 # codex-lb
+This project is fork off `codex-lb`. There are no plans to merge back to the original project.
+The purpose is faster patching, moving away from python and just for personal fun experiments really.
 
 Load balancer for ChatGPT accounts. Pool multiple accounts, track usage, manage API keys, view everything in a dashboard.
 

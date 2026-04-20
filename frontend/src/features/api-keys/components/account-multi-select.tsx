@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { ChevronsUpDown, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -12,20 +12,29 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useAccounts } from "@/features/accounts/hooks/use-accounts";
+import { cn } from "@/lib/utils";
 
 export type AccountMultiSelectProps = {
   value: string[];
   onChange: (value: string[]) => void;
   placeholder?: string;
+  triggerId?: string;
+  ariaInvalid?: boolean;
+  ariaDescribedBy?: string;
+  triggerClassName?: string;
 };
 
-export function AccountMultiSelect({
+export const AccountMultiSelect = memo(function AccountMultiSelect({
   value,
   onChange,
   placeholder = "All accounts",
+  triggerId,
+  ariaInvalid = false,
+  ariaDescribedBy,
+  triggerClassName,
 }: AccountMultiSelectProps) {
   const { accountsQuery } = useAccounts();
-  const accounts = accountsQuery.data ?? [];
+  const accounts = useMemo(() => accountsQuery.data ?? [], [accountsQuery.data]);
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
@@ -80,7 +89,10 @@ export function AccountMultiSelect({
           <Button
             type="button"
             variant="outline"
-            className="w-full justify-between font-normal"
+            id={triggerId}
+            aria-invalid={ariaInvalid}
+            aria-describedby={ariaDescribedBy}
+            className={cn("w-full justify-between font-normal", triggerClassName)}
             disabled={accountsQuery.isLoading}
           >
             <span className="truncate text-left">
@@ -143,4 +155,4 @@ export function AccountMultiSelect({
       ) : null}
     </div>
   );
-}
+});

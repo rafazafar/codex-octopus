@@ -171,6 +171,12 @@ if PROMETHEUS_AVAILABLE:
         ["kind"],
         registry=REGISTRY,
     )
+    websocket_request_replay_total = Counter(
+        "codex_lb_websocket_request_replay_total",
+        "Total websocket request replay decisions by outcome",
+        ["outcome"],
+        registry=REGISTRY,
+    )
 
     def make_scrape_registry() -> CollectorRegistryLike:
         if MULTIPROCESS_MODE:
@@ -211,6 +217,7 @@ else:
     bridge_local_rebind_total: CounterLike | None = None
     bridge_forward_latency_seconds: HistogramLike | None = None
     bridge_public_contract_error_total: CounterLike | None = None
+    websocket_request_replay_total: CounterLike | None = None
 
     def make_scrape_registry() -> None:
         return None
@@ -247,4 +254,5 @@ __all__ = [
     "requests_total",
     "upstream_request_duration_seconds",
     "upstream_requests_total",
+    "websocket_request_replay_total",
 ]

@@ -8,6 +8,7 @@ describe("AccountList", () => {
   it("renders items and filters by search", async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
+    const onExport = vi.fn();
 
     render(
       <AccountList
@@ -32,6 +33,7 @@ describe("AccountList", () => {
         selectedAccountId="acc-1"
         onSelect={onSelect}
         onOpenImport={() => {}}
+        onExport={onExport}
         onOpenOauth={() => {}}
       />,
     );
@@ -65,6 +67,7 @@ describe("AccountList", () => {
         selectedAccountId={null}
         onSelect={() => {}}
         onOpenImport={() => {}}
+        onExport={() => {}}
         onOpenOauth={() => {}}
       />,
     );
@@ -105,6 +108,7 @@ describe("AccountList", () => {
         selectedAccountId={null}
         onSelect={() => {}}
         onOpenImport={() => {}}
+        onExport={() => {}}
         onOpenOauth={() => {}}
       />,
     );
@@ -113,5 +117,33 @@ describe("AccountList", () => {
     expect(screen.getByText((_content, el) => el?.tagName === "P" && !!el.textContent?.match(/dup@example\.com \| ID 7f9de2ad\.\.\.a95cee/))).toBeInTheDocument();
     expect(screen.getByText("unique@example.com")).toBeInTheDocument();
     expect(screen.queryByText((_content, el) => el?.tagName === "P" && !!el.textContent?.match(/unique@example\.com \| ID/))).not.toBeInTheDocument();
+  });
+
+  it("calls export callback from the toolbar", async () => {
+    const user = userEvent.setup();
+    const onExport = vi.fn();
+
+    render(
+      <AccountList
+        accounts={[
+          {
+            accountId: "acc-1",
+            email: "primary@example.com",
+            displayName: "Primary",
+            planType: "plus",
+            status: "active",
+            additionalQuotas: [],
+          },
+        ]}
+        selectedAccountId="acc-1"
+        onSelect={() => {}}
+        onOpenImport={() => {}}
+        onExport={onExport}
+        onOpenOauth={() => {}}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Export" }));
+    expect(onExport).toHaveBeenCalledTimes(1);
   });
 });

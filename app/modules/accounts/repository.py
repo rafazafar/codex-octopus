@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 import hashlib
 from dataclasses import dataclass
 from datetime import datetime
@@ -35,6 +37,11 @@ class AccountIdentityConflictError(Exception):
 class AccountsRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+
+    @asynccontextmanager
+    async def transaction(self) -> AsyncIterator[None]:
+        async with self._session.begin():
+            yield
 
     async def get_by_id(self, account_id: str) -> Account | None:
         return await self._session.get(Account, account_id)
@@ -94,7 +101,13 @@ class AccountsRepository:
         )
         return result.scalar_one_or_none() is not None
 
-    async def upsert(self, account: Account, *, merge_by_email: bool | None = None) -> Account:
+    async def upsert(
+        self,
+        account: Account,
+        *,
+        merge_by_email: bool | None = None,
+        commit: bool = True,
+    ) -> Account:
         dialect_name = self._dialect_name()
         sqlite_lock_acquired = False
         if merge_by_email is None:
@@ -118,7 +131,7 @@ class AccountsRepository:
         if existing:
             if merge_by_email:
                 _apply_account_updates(existing, account)
-                await self._session.commit()
+                await self._flush_or_commit(commit=commit)
                 await self._session.refresh(existing)
                 return existing
             account.id = await self._next_available_account_id(account.id)
@@ -127,12 +140,12 @@ class AccountsRepository:
             existing_by_email = await self._single_account_by_email(account.email)
             if existing_by_email:
                 _apply_account_updates(existing_by_email, account)
-                await self._session.commit()
+                await self._flush_or_commit(commit=commit)
                 await self._session.refresh(existing_by_email)
                 return existing_by_email
 
         self._session.add(account)
-        await self._session.commit()
+        await self._flush_or_commit(commit=commit)
         await self._session.refresh(account)
         return account
 
@@ -290,6 +303,12 @@ class AccountsRepository:
             text("SELECT pg_advisory_xact_lock(:lock_key)"),
             {"lock_key": lock_key},
         )
+
+    async def _flush_or_commit(self, *, commit: bool) -> None:
+        if commit:
+            await self._session.commit()
+            return
+        await self._session.flush()
 
 
 def _apply_account_updates(target: Account, source: Account) -> None:

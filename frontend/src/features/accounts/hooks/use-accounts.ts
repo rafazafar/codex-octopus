@@ -3,6 +3,7 @@ import { toast } from "sonner";
 
 import {
   deleteAccount,
+  exportAccounts,
   getAccountTrends,
   importAccount,
   listAccounts,
@@ -15,6 +16,14 @@ function invalidateAccountRelatedQueries(queryClient: ReturnType<typeof useQuery
   void queryClient.invalidateQueries({ queryKey: ["dashboard", "overview"] });
 }
 
+function formatImportErrorMessage(error: Error): string {
+  const message = error.message?.trim() || "Import failed";
+  if (message.includes("Nothing was imported")) {
+    return message;
+  }
+  return message.endsWith(".") ? `${message} Nothing was imported.` : `${message}. Nothing was imported.`;
+}
+
 /**
  * Account mutation actions without the polling query.
  * Use this when you need account actions but already have account data
@@ -25,12 +34,23 @@ export function useAccountMutations() {
 
   const importMutation = useMutation({
     mutationFn: importAccount,
-    onSuccess: () => {
-      toast.success("Account imported");
+    onSuccess: (response) => {
+      const noun = response.importedCount === 1 ? "account" : "accounts";
+      toast.success(`Imported ${response.importedCount} ${noun}`);
       invalidateAccountRelatedQueries(queryClient);
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Import failed");
+      toast.error(formatImportErrorMessage(error));
+    },
+  });
+
+  const exportMutation = useMutation({
+    mutationFn: exportAccounts,
+    onSuccess: () => {
+      toast.success("Accounts exported");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Export failed");
     },
   });
 
@@ -67,7 +87,7 @@ export function useAccountMutations() {
     },
   });
 
-  return { importMutation, pauseMutation, resumeMutation, deleteMutation };
+  return { importMutation, exportMutation, pauseMutation, resumeMutation, deleteMutation };
 }
 
 export function useAccountTrends(accountId: string | null) {

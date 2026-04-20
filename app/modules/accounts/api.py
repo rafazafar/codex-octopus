@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, File, Request, UploadFile
+from fastapi.responses import Response
 
 from app.core.audit.service import AuditService
 from app.core.auth.dependencies import set_dashboard_error_format, validate_dashboard_session
@@ -52,16 +53,44 @@ async def import_account(
     raw = await auth_json.read()
     try:
         response = await context.service.import_account(raw)
-        AuditService.log_async(
-            "account_created",
-            actor_ip=request.client.host if request.client else None,
-            details={"account_id": response.account_id},
-        )
+        for imported in response.accounts:
+            AuditService.log_async(
+                "account_created",
+                actor_ip=request.client.host if request.client else None,
+                details={"account_id": imported.account_id},
+            )
         return response
     except InvalidAuthJsonError as exc:
-        raise DashboardBadRequestError("Invalid auth.json payload", code="invalid_auth_json") from exc
+        raise DashboardBadRequestError(
+            "Invalid accounts JSON payload. Nothing was imported.",
+            code="invalid_auth_json",
+        ) from exc
     except AccountIdentityConflictError as exc:
-        raise DashboardConflictError(str(exc), code="duplicate_identity_conflict") from exc
+        raise DashboardConflictError(
+            f"{exc} Nothing was imported.",
+            code="duplicate_identity_conflict",
+        ) from exc
+
+
+@router.get("/export")
+async def export_accounts(
+    request: Request,
+    context: AccountsContext = Depends(get_accounts_context),
+) -> Response:
+    export_bundle = await context.service.export_accounts()
+    AuditService.log_async(
+        "accounts_exported",
+        actor_ip=request.client.host if request.client else None,
+        details={"exported_count": export_bundle.exported_count},
+    )
+    return Response(
+        content=export_bundle.payload,
+        media_type="application/json",
+        headers={
+            "Content-Disposition": f'attachment; filename="{export_bundle.filename}"',
+            "Cache-Control": "no-store",
+        },
+    )
 
 
 @router.post("/{account_id}/reactivate", response_model=AccountReactivateResponse)

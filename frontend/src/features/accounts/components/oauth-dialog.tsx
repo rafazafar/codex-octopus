@@ -66,12 +66,6 @@ function ManualCallbackInput({
   const [callbackUrl, setCallbackUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (disabled) {
-      setCallbackUrl("");
-    }
-  }, [disabled]);
-
   const handleSubmit = useCallback(async () => {
     if (!callbackUrl.trim()) return;
     setSubmitting(true);
@@ -93,7 +87,7 @@ function ManualCallbackInput({
       <div className="flex items-center gap-2">
         <input
           type="text"
-          value={callbackUrl}
+          value={disabled ? "" : callbackUrl}
           onChange={(e) => setCallbackUrl(e.target.value)}
           disabled={disabled}
           placeholder="http://localhost:1455/auth/callback?code=...&state=..."
@@ -257,7 +251,11 @@ export function OauthDialog({
                 Refresh the link if the current sign-in page has already been used.
               </p>
             </div>
-            <ManualCallbackInput onSubmit={onManualCallback} disabled={browserRefreshInProgress} />
+            <ManualCallbackInput
+              key={browserRefreshInProgress ? "manual-callback-disabled" : "manual-callback-enabled"}
+              onSubmit={onManualCallback}
+              disabled={browserRefreshInProgress}
+            />
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
               <span>Waiting for authorization to complete...</span>

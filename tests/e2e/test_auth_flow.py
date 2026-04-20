@@ -9,6 +9,10 @@ async def test_dashboard_password_auth_flow(client, setup_dashboard_password, lo
     public_response = await client.get("/api/settings")
     assert public_response.status_code == 200
 
+    public_onboarding = await client.get("/api/public/onboarding")
+    assert public_onboarding.status_code == 200
+    assert set(public_onboarding.json().keys()) == {"connectAddress", "apiKeyAuthEnabled"}
+
     password = await setup_dashboard_password(client)
 
     logout_response = await client.post("/api/dashboard-auth/logout", json={})
@@ -17,6 +21,10 @@ async def test_dashboard_password_auth_flow(client, setup_dashboard_password, lo
     blocked_response = await client.get("/api/settings")
     assert blocked_response.status_code == 401
     assert blocked_response.json()["error"]["code"] == "authentication_required"
+
+    public_onboarding_after_logout = await client.get("/api/public/onboarding")
+    assert public_onboarding_after_logout.status_code == 200
+    assert set(public_onboarding_after_logout.json().keys()) == {"connectAddress", "apiKeyAuthEnabled"}
 
     login_payload = await login_dashboard(client, password=password)
     assert login_payload["passwordRequired"] is True
