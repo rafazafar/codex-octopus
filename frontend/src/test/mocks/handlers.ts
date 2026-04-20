@@ -22,6 +22,7 @@ import {
 	createOauthStatusResponse,
 	createRequestLogFilterOptions,
 	createRequestLogsResponse,
+	createSystemHealthResponse,
 	type DashboardAuthSession,
 	type DashboardSettings,
 	type RequestLogEntry,
@@ -589,6 +590,10 @@ export const handlers = [
 				accounts: state.accounts,
 			}),
 		);
+	}),
+
+	http.get("/api/system-health", () => {
+		return HttpResponse.json(createSystemHealthResponse());
 	}),
 
 	http.get("/api/request-logs", ({ request }) => {

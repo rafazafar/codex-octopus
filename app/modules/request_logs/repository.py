@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import cast as typing_cast
 
 import anyio
-from sqlalchemy import Integer, String, and_, cast, func, literal_column, or_, select
+from sqlalchemy import Integer, String, and_, case, cast, func, literal_column, or_, select
 from sqlalchemy import exc as sa_exc
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,12 +14,25 @@ from app.core.usage.types import BucketModelAggregate, RequestActivityAggregate
 from app.core.utils.request_id import ensure_request_id
 from app.core.utils.time import utcnow
 from app.db.models import Account, ApiKey, RequestLog
+from app.modules.request_logs.mappers import QUOTA_CODES, RATE_LIMIT_CODES
 
 
 @dataclass(frozen=True, slots=True)
 class _RequestLogFilters:
     conditions: list
     needs_related_search_joins: bool
+
+
+@dataclass(frozen=True, slots=True)
+class NormalizedStatusCounts:
+    ok: int
+    rate_limit: int
+    quota: int
+    error: int
+
+    @property
+    def total(self) -> int:
+        return self.ok + self.rate_limit + self.quota + self.error
 
 
 class RequestLogsRepository:
@@ -117,6 +130,35 @@ class RequestLogsRepository:
         result = await self._session.execute(stmt)
         row = result.first()
         return str(row[0]) if row and row[0] else None
+
+    async def aggregate_normalized_status_counts_since(self, since: datetime) -> NormalizedStatusCounts:
+        success_expr = RequestLog.status == "success"
+        rate_limit_expr = and_(RequestLog.status != "success", RequestLog.error_code.in_(sorted(RATE_LIMIT_CODES)))
+        quota_expr = and_(RequestLog.status != "success", RequestLog.error_code.in_(sorted(QUOTA_CODES)))
+        error_expr = and_(
+            RequestLog.status != "success",
+            or_(
+                RequestLog.error_code.is_(None),
+                and_(
+                    ~RequestLog.error_code.in_(sorted(RATE_LIMIT_CODES)),
+                    ~RequestLog.error_code.in_(sorted(QUOTA_CODES)),
+                ),
+            ),
+        )
+        stmt = select(
+            func.coalesce(func.sum(case((success_expr, 1), else_=0)), 0).label("ok"),
+            func.coalesce(func.sum(case((rate_limit_expr, 1), else_=0)), 0).label("rate_limit"),
+            func.coalesce(func.sum(case((quota_expr, 1), else_=0)), 0).label("quota"),
+            func.coalesce(func.sum(case((error_expr, 1), else_=0)), 0).label("error"),
+        ).where(RequestLog.requested_at >= since)
+        result = await self._session.execute(stmt)
+        row = result.one()
+        return NormalizedStatusCounts(
+            ok=int(row.ok),
+            rate_limit=int(row.rate_limit),
+            quota=int(row.quota),
+            error=int(row.error),
+        )
 
     async def add_log(
         self,

@@ -41,6 +41,8 @@ import {
 	RequestLogSchema,
 	RequestLogsResponseSchema,
 } from "@/features/dashboard/schemas";
+import type { SystemHealthResponse } from "@/features/system-health/schemas";
+import { SystemHealthResponseSchema } from "@/features/system-health/schemas";
 import type { DashboardSettings } from "@/features/settings/schemas";
 import { DashboardSettingsSchema } from "@/features/settings/schemas";
 
@@ -62,6 +64,7 @@ export type {
 	ApiKeyCreateResponse,
 	ApiKeyTrendsResponse,
 	ApiKeyUsage7DayResponse,
+	SystemHealthResponse,
 };
 
 const BASE_TIME = new Date("2026-01-01T12:00:00Z");
@@ -347,6 +350,17 @@ export function createDashboardSettings(
 		totpRequiredOnLogin: false,
 		totpConfigured: true,
 		apiKeyAuthEnabled: true,
+		...overrides,
+	});
+}
+
+export function createSystemHealthResponse(
+	overrides: Partial<SystemHealthResponse> = {},
+): SystemHealthResponse {
+	return SystemHealthResponseSchema.parse({
+		status: "healthy",
+		updatedAt: offsetIso(-5),
+		alert: null,
 		...overrides,
 	});
 }

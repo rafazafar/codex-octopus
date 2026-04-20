@@ -1,6 +1,7 @@
 import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 
 import { AppHeader } from "@/components/layout/app-header";
+import { GlobalIncidentBar } from "@/components/layout/global-incident-bar";
 import { StatusBar } from "@/components/layout/status-bar";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,7 +16,7 @@ import { OnboardingPage } from "@/features/onboarding/components/onboarding-page
 import { SettingsPage } from "@/features/settings/components/settings-page";
 import { useTimeFormatStore } from "@/hooks/use-time-format";
 
-function AppLayout() {
+function AppLayout({ showSystemHealth = false }: { showSystemHealth?: boolean }) {
   const logout = useAuthStore((state) => state.logout);
   const authenticated = useAuthStore((state) => state.authenticated);
   const passwordRequired = useAuthStore((state) => state.passwordRequired);
@@ -29,6 +30,7 @@ function AppLayout() {
         }}
         showLogout={passwordRequired && authenticated}
       />
+      {showSystemHealth ? <GlobalIncidentBar /> : null}
       <main className="mx-auto w-full max-w-[1500px] flex-1 px-4 py-8 sm:px-6">
         <Outlet />
       </main>
@@ -40,7 +42,7 @@ function AppLayout() {
 function ProtectedAppLayout() {
   return (
     <AuthGate>
-      <AppLayout />
+      <AppLayout showSystemHealth />
     </AuthGate>
   );
 }
