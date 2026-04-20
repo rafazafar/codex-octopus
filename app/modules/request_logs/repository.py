@@ -182,6 +182,7 @@ class RequestLogsRepository:
         search: str | None = None,
         since: datetime | None = None,
         until: datetime | None = None,
+        api_key_id: str | None = None,
         account_ids: list[str] | None = None,
         model_options: list[tuple[str, str | None]] | None = None,
         models: list[str] | None = None,
@@ -195,6 +196,7 @@ class RequestLogsRepository:
             search=search,
             since=since,
             until=until,
+            api_key_id=api_key_id,
             account_ids=account_ids,
             model_options=model_options,
             models=models,
@@ -234,6 +236,7 @@ class RequestLogsRepository:
         self,
         since: datetime | None = None,
         until: datetime | None = None,
+        api_key_id: str | None = None,
         account_ids: list[str] | None = None,
         model_options: list[tuple[str, str | None]] | None = None,
         models: list[str] | None = None,
@@ -242,6 +245,7 @@ class RequestLogsRepository:
         filters = self._build_filters(
             since=since,
             until=until,
+            api_key_id=api_key_id,
             account_ids=account_ids,
             model_options=model_options,
             models=models,
@@ -291,6 +295,7 @@ class RequestLogsRepository:
         search: str | None = None,
         since: datetime | None = None,
         until: datetime | None = None,
+        api_key_id: str | None = None,
         account_ids: list[str] | None = None,
         model_options: list[tuple[str, str | None]] | None = None,
         models: list[str] | None = None,
@@ -305,6 +310,8 @@ class RequestLogsRepository:
             conditions.append(RequestLog.requested_at >= since)
         if until is not None:
             conditions.append(RequestLog.requested_at <= until)
+        if api_key_id:
+            conditions.append(RequestLog.api_key_id == api_key_id)
         if account_ids:
             conditions.append(RequestLog.account_id.in_(account_ids))
 

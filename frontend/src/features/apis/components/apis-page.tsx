@@ -9,7 +9,10 @@ import type {
 	ApiKeyCreateRequest,
 	ApiKeyUpdateRequest,
 } from "@/features/api-keys/schemas";
-import { ApiDetail } from "@/features/apis/components/api-detail";
+import {
+	ApiDetail,
+	type ApiDetailView,
+} from "@/features/apis/components/api-detail";
 import { ApiList } from "@/features/apis/components/api-list";
 import { ApisSkeleton } from "@/features/apis/components/apis-skeleton";
 import {
@@ -36,6 +39,10 @@ const ApiKeyCreatedDialog = lazy(() =>
 	})),
 );
 
+function parseDetailView(value: string | null): ApiDetailView {
+	return value === "history" ? "history" : "overview";
+}
+
 export function ApisPage() {
 	const [searchParams, setSearchParams] = useSearchParams();
 	const {
@@ -53,11 +60,28 @@ export function ApisPage() {
 
 	const apiKeys = useMemo(() => apiKeysQuery.data ?? [], [apiKeysQuery.data]);
 	const selectedKeyId = searchParams.get("selected");
+	const detailView = useMemo(
+		() => parseDetailView(searchParams.get("view")),
+		[searchParams],
+	);
 
 	const handleSelectKey = useCallback(
 		(keyId: string) => {
 			const nextSearchParams = new URLSearchParams(searchParams);
 			nextSearchParams.set("selected", keyId);
+			setSearchParams(nextSearchParams);
+		},
+		[searchParams, setSearchParams],
+	);
+
+	const handleViewChange = useCallback(
+		(view: ApiDetailView) => {
+			const nextSearchParams = new URLSearchParams(searchParams);
+			if (view === "overview") {
+				nextSearchParams.delete("view");
+			} else {
+				nextSearchParams.set("view", view);
+			}
 			setSearchParams(nextSearchParams);
 		},
 		[searchParams, setSearchParams],
@@ -151,6 +175,7 @@ export function ApisPage() {
 
 					<ApiDetail
 						apiKey={selectedApiKey}
+						view={detailView}
 						trends={trendsQuery.data}
 						usage7Day={usage7DayQuery.data}
 						usage7DayLoading={usage7DayQuery.isPending}
@@ -174,6 +199,7 @@ export function ApisPage() {
 								})
 								.catch(() => null);
 						}}
+						onViewChange={handleViewChange}
 					/>
 				</div>
 			)}

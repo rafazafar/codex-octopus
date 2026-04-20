@@ -17,6 +17,7 @@ const callbacks = {
 	onDelete: vi.fn(),
 	onRegenerate: vi.fn(),
 	onToggleActive: vi.fn(),
+	onViewChange: vi.fn(),
 };
 
 function renderApiDetail(overrides: Partial<ComponentProps<typeof ApiDetail>> = {}) {
@@ -28,6 +29,7 @@ function renderApiDetail(overrides: Partial<ComponentProps<typeof ApiDetail>> = 
 			usage7Day={null}
 			usage7DayLoading={false}
 			usage7DayError={null}
+			view="overview"
 			busy={false}
 			{...callbacks}
 			{...overrides}
@@ -44,6 +46,7 @@ describe("ApiDetail", () => {
 				usage7Day={null}
 				usage7DayLoading={false}
 				usage7DayError={null}
+				view="overview"
 				busy={false}
 				{...callbacks}
 			/>,
@@ -152,6 +155,16 @@ describe("ApiDetail", () => {
 		expect(toggle).toBeChecked();
 	});
 
+	it("routes tab changes through the view callback", async () => {
+		const user = userEvent.setup();
+		const onViewChange = vi.fn();
+		renderApiDetail({ onViewChange });
+
+		await user.click(screen.getByRole("tab", { name: "History" }));
+
+		expect(onViewChange).toHaveBeenCalledWith("history");
+	});
+
 	it("shows enable action for inactive keys and disable action for active keys", () => {
 		const { rerender } = renderWithProviders(
 			<ApiDetail
@@ -160,6 +173,7 @@ describe("ApiDetail", () => {
 				usage7Day={null}
 				usage7DayLoading={false}
 				usage7DayError={null}
+				view="overview"
 				busy={false}
 				{...callbacks}
 			/>,
@@ -175,6 +189,7 @@ describe("ApiDetail", () => {
 				usage7Day={null}
 				usage7DayLoading={false}
 				usage7DayError={null}
+				view="overview"
 				busy={false}
 				{...callbacks}
 			/>,

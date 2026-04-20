@@ -245,6 +245,7 @@ function filterRequestLogs(
 	options?: { includeStatuses?: boolean },
 ): RequestLogEntry[] {
 	const includeStatuses = options?.includeStatuses ?? true;
+	const apiKeyId = url.searchParams.get("apiKeyId");
 	const accountIds = new Set(url.searchParams.getAll("accountId"));
 	const statuses = new Set(
 		url.searchParams.getAll("status").map((value) => value.toLowerCase()),
@@ -257,6 +258,14 @@ function filterRequestLogs(
 	const until = parseDateValue(url.searchParams.get("until"));
 
 	return state.requestLogs.filter((entry) => {
+		if (apiKeyId) {
+			const scopedApiKeyName =
+				state.apiKeys.find((apiKey) => apiKey.id === apiKeyId)?.name ?? null;
+			if (!scopedApiKeyName || entry.apiKeyName !== scopedApiKeyName) {
+				return false;
+			}
+		}
+
 		if (
 			accountIds.size > 0 &&
 			(!entry.accountId || !accountIds.has(entry.accountId))
