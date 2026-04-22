@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from app.core import usage as usage_core
 from app.core.usage.depletion import (
     EWMAState,
     classify_risk,
@@ -38,6 +39,14 @@ class AggregateDepletionMetrics:
     safe_usage_percent: float
     projected_exhaustion_at: datetime | None
     seconds_until_exhaustion: float | None
+
+
+@dataclass(frozen=True)
+class PooledPaceMarkerInput:
+    plan_type: str | None
+    window: str
+    window_minutes: int | None
+    reset_at: int | None
 
 
 def compute_depletion_for_account(
@@ -125,8 +134,65 @@ def compute_depletion_for_account(
     )
 
 
+def fallback_plan_weight(plan_type: str | None) -> float:
+    normalized = usage_core.normalize_account_plan_type(plan_type)
+    if normalized == "pro":
+        return 5.0
+    return 1.0
+
+
+def compute_pooled_safe_usage_percent(
+    inputs: Sequence[PooledPaceMarkerInput],
+    now: datetime | None = None,
+) -> float:
+    pooled_safe_usage_percent, _ = _compute_pooled_safe_usage_percent_with_eligibility(inputs, now=now)
+    return pooled_safe_usage_percent
+
+
+def _compute_pooled_safe_usage_percent_with_eligibility(
+    inputs: Sequence[PooledPaceMarkerInput],
+    now: datetime | None = None,
+) -> tuple[float, bool]:
+    now = now or utcnow()
+    total_weight = 0.0
+    weighted_elapsed = 0.0
+    now_epoch = naive_utc_to_epoch(now)
+
+    for item in inputs:
+        if item.window_minutes is None or item.window_minutes <= 0:
+            continue
+
+        window_seconds = float(item.window_minutes * 60)
+        if item.reset_at is None:
+            seconds_until_reset = window_seconds
+        else:
+            seconds_until_reset = float(item.reset_at - now_epoch)
+
+        if window_seconds <= 0 or seconds_until_reset <= 0:
+            continue
+
+        elapsed_ratio = min(max(1.0 - (seconds_until_reset / window_seconds), 0.0), 1.0)
+        if not (0.0 <= elapsed_ratio <= 1.0):
+            continue
+
+        weight = usage_core.capacity_for_plan(item.plan_type, item.window)
+        if weight is None or weight <= 0:
+            weight = fallback_plan_weight(item.plan_type)
+        if weight <= 0:
+            continue
+
+        total_weight += weight
+        weighted_elapsed += weight * elapsed_ratio
+
+    if total_weight <= 0:
+        return 0.0, False
+    return (weighted_elapsed / total_weight) * 100.0, True
+
+
 def compute_aggregate_depletion(
     per_account_metrics: Sequence[DepletionMetrics | None],
+    pooled_marker_inputs: Sequence[PooledPaceMarkerInput] | None = None,
+    now: datetime | None = None,
 ) -> AggregateDepletionMetrics | None:
     """
     Aggregate depletion metrics across accounts using max(risk).
@@ -136,15 +202,24 @@ def compute_aggregate_depletion(
     if not valid:
         return None
 
-    # Use all fields from the worst-case account so that risk, safe-line,
-    # burn rate, and exhaustion ETA are internally consistent.
+    # Risk, burn rate, and exhaustion ETA come from the worst-case account.
+    # The safe usage marker may instead come from pooled marker inputs when
+    # they provide a usable aggregate pace line.
     worst = max(valid, key=lambda m: m.risk)
+    pooled_safe_usage_percent = worst.safe_usage_percent
+    if pooled_marker_inputs is not None:
+        pooled_safe_usage_percent, has_usable_pooled_input = _compute_pooled_safe_usage_percent_with_eligibility(
+            pooled_marker_inputs,
+            now=now,
+        )
+        if not has_usable_pooled_input:
+            pooled_safe_usage_percent = worst.safe_usage_percent
 
     return AggregateDepletionMetrics(
         risk=worst.risk,
         risk_level=worst.risk_level,
         burn_rate=worst.burn_rate,
-        safe_usage_percent=worst.safe_usage_percent,
+        safe_usage_percent=pooled_safe_usage_percent,
         projected_exhaustion_at=worst.projected_exhaustion_at,
         seconds_until_exhaustion=worst.seconds_until_exhaustion,
     )

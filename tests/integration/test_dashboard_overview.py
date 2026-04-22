@@ -185,6 +185,48 @@ async def test_dashboard_overview_computes_depletion_from_recent_db_history(asyn
 
 
 @pytest.mark.asyncio
+async def test_dashboard_overview_uses_pooled_weighted_safe_usage_percent(async_client, db_setup):
+    now = utcnow().replace(microsecond=0)
+
+    async with SessionLocal() as session:
+        accounts_repo = AccountsRepository(session)
+        usage_repo = UsageRepository(session)
+
+        await accounts_repo.upsert(_make_account("acc_plus_pool", "plus-pool@example.com", plan_type="plus"))
+        await accounts_repo.upsert(_make_account("acc_pro_pool", "pro-pool@example.com", plan_type="pro"))
+
+        for account_id, start_used, end_used, reset_minutes in (
+            ("acc_plus_pool", 10.0, 20.0, 240),
+            ("acc_pro_pool", 30.0, 50.0, 90),
+        ):
+            reset_at = int(naive_utc_to_epoch(now + timedelta(minutes=reset_minutes)))
+            await usage_repo.add_entry(
+                account_id,
+                start_used,
+                window="primary",
+                window_minutes=300,
+                reset_at=reset_at,
+                recorded_at=now - timedelta(minutes=20),
+            )
+            await usage_repo.add_entry(
+                account_id,
+                end_used,
+                window="primary",
+                window_minutes=300,
+                reset_at=reset_at,
+                recorded_at=now - timedelta(minutes=5),
+            )
+
+    response = await async_client.get("/api/dashboard/overview")
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["depletionPrimary"] is not None
+    assert payload["depletionPrimary"]["safeUsagePercent"] == pytest.approx((1095.0 / 1725.0) * 100.0, abs=0.02)
+    assert payload["depletionPrimary"]["safeUsagePercent"] != pytest.approx(70.0)
+
+
+@pytest.mark.asyncio
 async def test_dashboard_overview_weekly_only_depletion_uses_current_stream(async_client, db_setup):
     now = utcnow().replace(microsecond=0)
     reset_at = int(naive_utc_to_epoch(now + timedelta(minutes=30)))

@@ -7,8 +7,11 @@ import pytest
 
 from app.modules.usage.depletion_service import (
     DepletionMetrics,
+    PooledPaceMarkerInput,
+    compute_pooled_safe_usage_percent,
     compute_aggregate_depletion,
     compute_depletion_for_account,
+    fallback_plan_weight,
     reset_ewma_state,
 )
 
@@ -181,6 +184,229 @@ def test_aggregate_depletion_single_metric() -> None:
     assert result is not None
     assert result.risk == pytest.approx(0.7)
     assert result.risk_level == "warning"
+
+
+def test_compute_pooled_safe_usage_percent_equal_capacity_averages_elapsed_progress() -> None:
+    now = BASE_TIME
+    result = compute_pooled_safe_usage_percent(
+        [
+            PooledPaceMarkerInput(
+                plan_type="plus",
+                window="primary",
+                window_minutes=300,
+                reset_at=int((now + timedelta(minutes=240)).timestamp()),
+            ),
+            PooledPaceMarkerInput(
+                plan_type="team",
+                window="primary",
+                window_minutes=300,
+                reset_at=int((now + timedelta(minutes=90)).timestamp()),
+            ),
+        ],
+        now=now,
+    )
+    assert result == pytest.approx(45.0)
+
+
+def test_compute_pooled_safe_usage_percent_uses_capacity_weighting_before_fallback() -> None:
+    now = BASE_TIME
+    result = compute_pooled_safe_usage_percent(
+        [
+            PooledPaceMarkerInput(
+                plan_type="plus",
+                window="primary",
+                window_minutes=300,
+                reset_at=int((now + timedelta(minutes=240)).timestamp()),
+            ),
+            PooledPaceMarkerInput(
+                plan_type="pro",
+                window="primary",
+                window_minutes=300,
+                reset_at=int((now + timedelta(minutes=90)).timestamp()),
+            ),
+        ],
+        now=now,
+    )
+    assert result == pytest.approx((1095.0 / 1725.0) * 100.0)
+
+
+def test_compute_pooled_safe_usage_percent_falls_back_to_plan_multiplier_weights() -> None:
+    now = BASE_TIME
+    result = compute_pooled_safe_usage_percent(
+        [
+            PooledPaceMarkerInput(
+                plan_type="plus",
+                window="unknown",
+                window_minutes=300,
+                reset_at=int((now + timedelta(minutes=240)).timestamp()),
+            ),
+            PooledPaceMarkerInput(
+                plan_type="pro",
+                window="unknown",
+                window_minutes=300,
+                reset_at=int((now + timedelta(minutes=90)).timestamp()),
+            ),
+        ],
+        now=now,
+    )
+    assert result == pytest.approx((1.0 * 0.2 + 5.0 * 0.7) / 6.0 * 100.0)
+
+
+def test_compute_pooled_safe_usage_percent_treats_missing_reset_as_zero_elapsed() -> None:
+    now = BASE_TIME
+    result = compute_pooled_safe_usage_percent(
+        [
+            PooledPaceMarkerInput(
+                plan_type="plus",
+                window="primary",
+                window_minutes=300,
+                reset_at=None,
+            ),
+            PooledPaceMarkerInput(
+                plan_type="plus",
+                window="primary",
+                window_minutes=300,
+                reset_at=int((now + timedelta(minutes=150)).timestamp()),
+            ),
+        ],
+        now=now,
+    )
+    assert result == pytest.approx(25.0)
+
+
+def test_compute_pooled_safe_usage_percent_ignores_past_reset_timing() -> None:
+    now = BASE_TIME
+    result = compute_pooled_safe_usage_percent(
+        [
+            PooledPaceMarkerInput(
+                plan_type="plus",
+                window="primary",
+                window_minutes=300,
+                reset_at=int((now - timedelta(minutes=1)).timestamp()),
+            ),
+            PooledPaceMarkerInput(
+                plan_type="plus",
+                window="primary",
+                window_minutes=300,
+                reset_at=int((now + timedelta(minutes=150)).timestamp()),
+            ),
+        ],
+        now=now,
+    )
+    assert result == pytest.approx(50.0)
+
+
+def test_compute_pooled_safe_usage_percent_ignores_reset_exactly_at_now() -> None:
+    now = BASE_TIME
+    result = compute_pooled_safe_usage_percent(
+        [
+            PooledPaceMarkerInput(
+                plan_type="plus",
+                window="primary",
+                window_minutes=300,
+                reset_at=int(now.timestamp()),
+            ),
+            PooledPaceMarkerInput(
+                plan_type="plus",
+                window="primary",
+                window_minutes=300,
+                reset_at=int((now + timedelta(minutes=150)).timestamp()),
+            ),
+        ],
+        now=now,
+    )
+    assert result == pytest.approx(50.0)
+
+
+def test_fallback_plan_weight_defaults() -> None:
+    assert fallback_plan_weight("plus") == pytest.approx(1.0)
+    assert fallback_plan_weight("team") == pytest.approx(1.0)
+    assert fallback_plan_weight("pro") == pytest.approx(5.0)
+    assert fallback_plan_weight("future-plan") == pytest.approx(1.0)
+
+
+def test_aggregate_depletion_uses_pooled_marker_without_changing_worst_risk_fields() -> None:
+    metrics = [
+        DepletionMetrics(
+            risk=0.3,
+            risk_level="safe",
+            rate_per_second=0.001,
+            burn_rate=0.5,
+            safe_usage_percent=20.0,
+            projected_exhaustion_at=None,
+            seconds_until_exhaustion=None,
+        ),
+        DepletionMetrics(
+            risk=0.8,
+            risk_level="danger",
+            rate_per_second=0.005,
+            burn_rate=2.0,
+            safe_usage_percent=95.0,
+            projected_exhaustion_at=None,
+            seconds_until_exhaustion=None,
+        ),
+    ]
+    pooled_inputs = [
+        PooledPaceMarkerInput(
+            plan_type="plus",
+            window="primary",
+            window_minutes=300,
+            reset_at=int((BASE_TIME + timedelta(minutes=240)).timestamp()),
+        ),
+        PooledPaceMarkerInput(
+            plan_type="plus",
+            window="primary",
+            window_minutes=300,
+            reset_at=int((BASE_TIME + timedelta(minutes=90)).timestamp()),
+        ),
+    ]
+    result = compute_aggregate_depletion(metrics, pooled_marker_inputs=pooled_inputs, now=BASE_TIME)
+    assert result is not None
+    assert result.risk == pytest.approx(0.8)
+    assert result.risk_level == "danger"
+    assert result.safe_usage_percent == pytest.approx(45.0)
+
+
+def test_aggregate_depletion_preserves_worst_safe_usage_percent_when_no_pooled_inputs_are_usable() -> None:
+    metrics = [
+        DepletionMetrics(
+            risk=0.3,
+            risk_level="safe",
+            rate_per_second=0.001,
+            burn_rate=0.5,
+            safe_usage_percent=20.0,
+            projected_exhaustion_at=None,
+            seconds_until_exhaustion=None,
+        ),
+        DepletionMetrics(
+            risk=0.8,
+            risk_level="danger",
+            rate_per_second=0.005,
+            burn_rate=2.0,
+            safe_usage_percent=95.0,
+            projected_exhaustion_at=None,
+            seconds_until_exhaustion=None,
+        ),
+    ]
+    pooled_inputs = [
+        PooledPaceMarkerInput(
+            plan_type="plus",
+            window="primary",
+            window_minutes=None,
+            reset_at=None,
+        ),
+        PooledPaceMarkerInput(
+            plan_type="plus",
+            window="primary",
+            window_minutes=300,
+            reset_at=int((BASE_TIME - timedelta(minutes=1)).timestamp()),
+        ),
+    ]
+    result = compute_aggregate_depletion(metrics, pooled_marker_inputs=pooled_inputs, now=BASE_TIME)
+    assert result is not None
+    assert result.risk == pytest.approx(0.8)
+    assert result.risk_level == "danger"
+    assert result.safe_usage_percent == pytest.approx(95.0)
 
 
 def test_reset_ewma_state_clears_state() -> None:

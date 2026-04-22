@@ -40,6 +40,7 @@ export type DashboardStat = {
 };
 
 export interface SafeLineView {
+  /** Weighted pooled on-pace marker for the quota window shown by the donut. */
   safePercent: number;
   riskLevel: "safe" | "warning" | "danger" | "critical";
 }

@@ -27,6 +27,7 @@ from app.modules.usage.builders import (
     build_usage_window_response,
 )
 from app.modules.usage.depletion_service import (
+    PooledPaceMarkerInput,
     compute_aggregate_depletion,
     compute_depletion_for_account,
 )
@@ -213,7 +214,13 @@ class DashboardService:
                 if rows:
                     secondary_history[account_id] = rows
 
-        pri_depletion, sec_depletion = _build_depletion_by_window(primary_history, secondary_history, now)
+        account_plan_types = {account.id: account.plan_type for account in accounts}
+        pri_depletion, sec_depletion = _build_depletion_by_window(
+            primary_history,
+            secondary_history,
+            account_plan_types,
+            now,
+        )
 
         additional_ts = await self._repo.latest_additional_recorded_at()
         return DashboardOverviewResponse(
@@ -231,12 +238,14 @@ class DashboardService:
 def _build_depletion_by_window(
     primary_history: dict[str, list[UsageHistory]],
     secondary_history: dict[str, list[UsageHistory]],
+    account_plan_types: dict[str, str | None],
     now,
 ) -> tuple[DepletionResponse | None, DepletionResponse | None]:
     """Compute depletion independently per window."""
 
     def _aggregate(history: dict[str, list[UsageHistory]], window: str) -> DepletionResponse | None:
         metrics = []
+        pooled_marker_inputs: list[PooledPaceMarkerInput] = []
         for account_id, rows in history.items():
             m = compute_depletion_for_account(
                 account_id=account_id,
@@ -246,7 +255,16 @@ def _build_depletion_by_window(
                 now=now,
             )
             metrics.append(m)
-        agg = compute_aggregate_depletion(metrics)
+            latest = rows[-1] if rows else None
+            pooled_marker_inputs.append(
+                PooledPaceMarkerInput(
+                    plan_type=account_plan_types.get(account_id),
+                    window=window,
+                    window_minutes=latest.window_minutes if latest else None,
+                    reset_at=latest.reset_at if latest else None,
+                )
+            )
+        agg = compute_aggregate_depletion(metrics, pooled_marker_inputs=pooled_marker_inputs, now=now)
         if agg is None:
             return None
         return DepletionResponse(
