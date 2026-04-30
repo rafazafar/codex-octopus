@@ -76,7 +76,7 @@ from app.modules.proxy.schemas import (
     ModelMetadata,
     RateLimitStatusPayload,
     ReasoningLevelSchema,
-    V1DailyUsageResponse,
+    V1DailyUsageEntryResponse,
     V1UsageLimitResponse,
     V1UsageResponse,
     V1UsageWindowResponse,
@@ -380,14 +380,13 @@ async def v1_usage(
                 total_cost_usd=windows.thirty_days.total_cost_usd,
             ),
         ),
-        daily_usage=[
-            V1DailyUsageResponse(
-                date=day.date,
+        daily_usage={
+            day.date.strftime("%d_%m_%Y"): V1DailyUsageEntryResponse(
                 tokens=day.tokens,
-                cost_usd=day.cost_usd,
+                cost_isd=day.cost_usd,
             )
             for day in daily_usage
-        ],
+        },
     )
 
 

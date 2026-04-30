@@ -57,9 +57,9 @@ async def test_v1_usage_returns_zero_usage_for_key_without_logs(async_client):
     payload = response.json()
     daily_usage = payload.pop("daily_usage")
     assert len(daily_usage) == 30
-    assert daily_usage == sorted(daily_usage, key=lambda row: row["date"])
-    assert all(row["tokens"] == 0 for row in daily_usage)
-    assert all(row["cost_usd"] == 0.0 for row in daily_usage)
+    assert list(daily_usage) == sorted(daily_usage, key=lambda value: tuple(reversed(value.split("_"))))
+    assert all(row["tokens"] == 0 for row in daily_usage.values())
+    assert all(row["cost_isd"] == 0.0 for row in daily_usage.values())
     assert payload == {
         "request_count": 0,
         "total_tokens": 0,
@@ -213,17 +213,17 @@ async def test_v1_usage_scopes_usage_to_authenticated_key_and_hides_limits(async
     assert payload["usage"]["30d"]["output_tokens"] == 45
     assert payload["usage"]["30d"]["total_cost_usd"] > 0
     assert len(payload["daily_usage"]) == 30
-    daily_usage = {row["date"]: row for row in payload["daily_usage"]}
-    today = now.date().isoformat()
-    two_days_ago = (now - timedelta(days=2)).date().isoformat()
-    twenty_days_ago = (now - timedelta(days=20)).date().isoformat()
-    forty_days_ago = (now - timedelta(days=40)).date().isoformat()
+    daily_usage = payload["daily_usage"]
+    today = now.date().strftime("%d_%m_%Y")
+    two_days_ago = (now - timedelta(days=2)).date().strftime("%d_%m_%Y")
+    twenty_days_ago = (now - timedelta(days=20)).date().strftime("%d_%m_%Y")
+    forty_days_ago = (now - timedelta(days=40)).date().strftime("%d_%m_%Y")
     assert daily_usage[today]["tokens"] == 118
-    assert daily_usage[today]["cost_usd"] > 0
+    assert daily_usage[today]["cost_isd"] > 0
     assert daily_usage[two_days_ago]["tokens"] == 46
-    assert daily_usage[two_days_ago]["cost_usd"] > 0
+    assert daily_usage[two_days_ago]["cost_isd"] > 0
     assert daily_usage[twenty_days_ago]["tokens"] == 32
-    assert daily_usage[twenty_days_ago]["cost_usd"] > 0
+    assert daily_usage[twenty_days_ago]["cost_isd"] > 0
     assert forty_days_ago not in daily_usage
     assert "limits" not in payload
 
