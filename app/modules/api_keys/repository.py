@@ -624,7 +624,7 @@ class ApiKeysRepository:
             for row in result.all()
         ]
 
-    async def usage_7d(self, key_id: str, since: datetime, until: datetime) -> ApiKeyUsageTotals:
+    async def usage_between(self, key_id: str, since: datetime, until: datetime) -> ApiKeyUsageTotals:
         stmt = select(
             func.count(RequestLog.id).label("total_requests"),
             func.coalesce(func.sum(RequestLog.input_tokens), 0).label("total_input_tokens"),

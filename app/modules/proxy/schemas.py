@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.types import JsonValue
 from app.modules.proxy.types import (
@@ -191,6 +191,23 @@ class V1UsageLimitResponse(BaseModel):
     source: str = "api_key_limit"
 
 
+class V1UsageWindowResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    request_count: int
+    total_tokens: int
+    cached_input_tokens: int
+    total_cost_usd: float
+
+
+class V1UsageWindowsResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    one_day: V1UsageWindowResponse = Field(alias="1d")
+    seven_days: V1UsageWindowResponse = Field(alias="7d")
+    thirty_days: V1UsageWindowResponse = Field(alias="30d")
+
+
 class V1UsageResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -198,3 +215,4 @@ class V1UsageResponse(BaseModel):
     total_tokens: int
     cached_input_tokens: int
     total_cost_usd: float
+    usage: V1UsageWindowsResponse

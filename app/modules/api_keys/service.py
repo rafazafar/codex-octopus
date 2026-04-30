@@ -154,7 +154,7 @@ class ApiKeysRepositoryProtocol(Protocol):
         bucket_seconds: int = 3600,
     ) -> list[ApiKeyTrendBucket]: ...
 
-    async def usage_7d(
+    async def usage_between(
         self,
         key_id: str,
         since: datetime,
@@ -785,7 +785,7 @@ class ApiKeysService:
             return None
         now = utcnow()
         since = now - timedelta(days=7)
-        data = await self._repository.usage_7d(key_id, since, now)
+        data = await self._repository.usage_between(key_id, since, now)
         return ApiKeyUsage7DayData(
             key_id=key_id,
             total_tokens=data.total_tokens,
@@ -795,6 +795,21 @@ class ApiKeysService:
             total_requests=data.total_requests,
             cached_input_tokens=data.cached_input_tokens,
             output_tokens=data.output_tokens,
+        )
+
+    async def get_key_usage_windows_for_self(self, key_id: str) -> ApiKeySelfUsageWindowsData | None:
+        row = await self._repository.get_by_id(key_id)
+        if row is None:
+            return None
+        now = utcnow()
+        return ApiKeySelfUsageWindowsData(
+            one_day=_to_self_usage_window(await self._repository.usage_between(key_id, now - timedelta(days=1), now)),
+            seven_days=_to_self_usage_window(
+                await self._repository.usage_between(key_id, now - timedelta(days=7), now)
+            ),
+            thirty_days=_to_self_usage_window(
+                await self._repository.usage_between(key_id, now - timedelta(days=30), now)
+            ),
         )
 
 
@@ -821,6 +836,21 @@ class ApiKeyUsage7DayData:
     total_requests: int = 0
     cached_input_tokens: int = 0
     output_tokens: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class ApiKeySelfUsageWindowData:
+    request_count: int = 0
+    total_tokens: int = 0
+    cached_input_tokens: int = 0
+    total_cost_usd: float = 0.0
+
+
+@dataclass(frozen=True, slots=True)
+class ApiKeySelfUsageWindowsData:
+    one_day: ApiKeySelfUsageWindowData
+    seven_days: ApiKeySelfUsageWindowData
+    thirty_days: ApiKeySelfUsageWindowData
 
 
 @dataclass(frozen=True, slots=True)
@@ -1152,6 +1182,15 @@ def _to_usage_summary_data(summary: ApiKeyUsageSummary | None) -> ApiKeyUsageSum
         cached_input_tokens=summary.cached_input_tokens,
         output_tokens=summary.output_tokens,
         total_cost_usd=summary.total_cost_usd,
+    )
+
+
+def _to_self_usage_window(totals: ApiKeyUsageTotals) -> ApiKeySelfUsageWindowData:
+    return ApiKeySelfUsageWindowData(
+        request_count=totals.total_requests,
+        total_tokens=totals.total_tokens,
+        cached_input_tokens=totals.cached_input_tokens,
+        total_cost_usd=totals.total_cost_usd,
     )
 
 

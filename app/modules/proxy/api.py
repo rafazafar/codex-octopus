@@ -78,6 +78,8 @@ from app.modules.proxy.schemas import (
     ReasoningLevelSchema,
     V1UsageLimitResponse,
     V1UsageResponse,
+    V1UsageWindowResponse,
+    V1UsageWindowsResponse,
 )
 from app.modules.proxy.types import (
     CreditStatusDetailsData,
@@ -338,8 +340,9 @@ async def v1_usage(
     async with get_background_session() as session:
         service = ApiKeysService(ApiKeysRepository(session))
         usage = await service.get_key_usage_summary_for_self(api_key.id)
+        windows = await service.get_key_usage_windows_for_self(api_key.id)
 
-    if usage is None:
+    if usage is None or windows is None:
         raise ProxyAuthError("Invalid API key")
 
     return V1UsageResponse(
@@ -347,6 +350,26 @@ async def v1_usage(
         total_tokens=usage.total_tokens,
         cached_input_tokens=usage.cached_input_tokens,
         total_cost_usd=usage.total_cost_usd,
+        usage=V1UsageWindowsResponse(
+            one_day=V1UsageWindowResponse(
+                request_count=windows.one_day.request_count,
+                total_tokens=windows.one_day.total_tokens,
+                cached_input_tokens=windows.one_day.cached_input_tokens,
+                total_cost_usd=windows.one_day.total_cost_usd,
+            ),
+            seven_days=V1UsageWindowResponse(
+                request_count=windows.seven_days.request_count,
+                total_tokens=windows.seven_days.total_tokens,
+                cached_input_tokens=windows.seven_days.cached_input_tokens,
+                total_cost_usd=windows.seven_days.total_cost_usd,
+            ),
+            thirty_days=V1UsageWindowResponse(
+                request_count=windows.thirty_days.request_count,
+                total_tokens=windows.thirty_days.total_tokens,
+                cached_input_tokens=windows.thirty_days.cached_input_tokens,
+                total_cost_usd=windows.thirty_days.total_cost_usd,
+            ),
+        ),
     )
 
 
