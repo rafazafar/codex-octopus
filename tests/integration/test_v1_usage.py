@@ -57,25 +57,33 @@ async def test_v1_usage_returns_zero_usage_for_key_without_logs(async_client):
     assert response.json() == {
         "request_count": 0,
         "total_tokens": 0,
+        "input_tokens": 0,
         "cached_input_tokens": 0,
+        "output_tokens": 0,
         "total_cost_usd": 0.0,
         "usage": {
             "1d": {
                 "request_count": 0,
                 "total_tokens": 0,
+                "input_tokens": 0,
                 "cached_input_tokens": 0,
+                "output_tokens": 0,
                 "total_cost_usd": 0.0,
             },
             "7d": {
                 "request_count": 0,
                 "total_tokens": 0,
+                "input_tokens": 0,
                 "cached_input_tokens": 0,
+                "output_tokens": 0,
                 "total_cost_usd": 0.0,
             },
             "30d": {
                 "request_count": 0,
                 "total_tokens": 0,
+                "input_tokens": 0,
                 "cached_input_tokens": 0,
+                "output_tokens": 0,
                 "total_cost_usd": 0.0,
             },
         },
@@ -176,19 +184,27 @@ async def test_v1_usage_scopes_usage_to_authenticated_key_and_hides_limits(async
     payload = response.json()
     assert payload["request_count"] == 5
     assert payload["total_tokens"] == 250
+    assert payload["input_tokens"] == 200
     assert payload["cached_input_tokens"] == 31
+    assert payload["output_tokens"] == 50
     assert payload["total_cost_usd"] > 0
     assert payload["usage"]["1d"]["request_count"] == 2
     assert payload["usage"]["1d"]["total_tokens"] == 140
+    assert payload["usage"]["1d"]["input_tokens"] == 110
     assert payload["usage"]["1d"]["cached_input_tokens"] == 22
+    assert payload["usage"]["1d"]["output_tokens"] == 30
     assert payload["usage"]["1d"]["total_cost_usd"] > 0
     assert payload["usage"]["7d"]["request_count"] == 3
     assert payload["usage"]["7d"]["total_tokens"] == 190
+    assert payload["usage"]["7d"]["input_tokens"] == 150
     assert payload["usage"]["7d"]["cached_input_tokens"] == 26
+    assert payload["usage"]["7d"]["output_tokens"] == 40
     assert payload["usage"]["7d"]["total_cost_usd"] > 0
     assert payload["usage"]["30d"]["request_count"] == 4
     assert payload["usage"]["30d"]["total_tokens"] == 225
+    assert payload["usage"]["30d"]["input_tokens"] == 180
     assert payload["usage"]["30d"]["cached_input_tokens"] == 29
+    assert payload["usage"]["30d"]["output_tokens"] == 45
     assert payload["usage"]["30d"]["total_cost_usd"] > 0
     assert "limits" not in payload
 

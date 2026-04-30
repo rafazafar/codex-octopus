@@ -774,7 +774,9 @@ class ApiKeysService:
         return ApiKeySelfUsageData(
             request_count=usage.request_count,
             total_tokens=usage.total_tokens,
+            input_tokens=usage.input_tokens,
             cached_input_tokens=usage.cached_input_tokens,
+            output_tokens=usage.output_tokens,
             total_cost_usd=usage.total_cost_usd,
             limits=limits,
         )
@@ -842,7 +844,9 @@ class ApiKeyUsage7DayData:
 class ApiKeySelfUsageWindowData:
     request_count: int = 0
     total_tokens: int = 0
+    input_tokens: int = 0
     cached_input_tokens: int = 0
+    output_tokens: int = 0
     total_cost_usd: float = 0.0
 
 
@@ -869,7 +873,9 @@ class ApiKeySelfLimitData:
 class ApiKeySelfUsageData:
     request_count: int = 0
     total_tokens: int = 0
+    input_tokens: int = 0
     cached_input_tokens: int = 0
+    output_tokens: int = 0
     total_cost_usd: float = 0.0
     limits: list[ApiKeySelfLimitData] = field(default_factory=list)
 
@@ -1189,7 +1195,9 @@ def _to_self_usage_window(totals: ApiKeyUsageTotals) -> ApiKeySelfUsageWindowDat
     return ApiKeySelfUsageWindowData(
         request_count=totals.total_requests,
         total_tokens=totals.total_tokens,
+        input_tokens=totals.input_tokens,
         cached_input_tokens=totals.cached_input_tokens,
+        output_tokens=totals.output_tokens,
         total_cost_usd=totals.total_cost_usd,
     )
 

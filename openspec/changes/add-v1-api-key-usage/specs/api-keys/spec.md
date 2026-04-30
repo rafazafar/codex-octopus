@@ -6,9 +6,11 @@ The system SHALL expose `GET /v1/usage` for self-service usage lookup by API-key
 
 - `request_count`
 - `total_tokens`
+- `input_tokens`
 - `cached_input_tokens`
+- `output_tokens`
 - `total_cost_usd`
-- `usage` containing `1d`, `7d`, and `30d` windows, each with `request_count`, `total_tokens`, `cached_input_tokens`, and `total_cost_usd`
+- `usage` containing `1d`, `7d`, and `30d` windows, each with `request_count`, `total_tokens`, `input_tokens`, `cached_input_tokens`, `output_tokens`, and `total_cost_usd`
 
 The response MUST NOT include API key limit or upstream quota-window details.
 
@@ -27,7 +29,7 @@ Validation failures MUST use the existing OpenAI error envelope used by `/v1/*` 
 #### Scenario: Key with no usage returns zero totals
 
 - **WHEN** a valid API key with no request-log usage calls `GET /v1/usage`
-- **THEN** the system returns `request_count: 0`, `total_tokens: 0`, `cached_input_tokens: 0`, `total_cost_usd: 0.0`
+- **THEN** the system returns `request_count: 0`, `total_tokens: 0`, `input_tokens: 0`, `cached_input_tokens: 0`, `output_tokens: 0`, `total_cost_usd: 0.0`
 - **AND** the `usage.1d`, `usage.7d`, and `usage.30d` windows each return zero usage values
 
 #### Scenario: Usage is scoped to the authenticated key

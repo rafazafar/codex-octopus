@@ -348,25 +348,33 @@ async def v1_usage(
     return V1UsageResponse(
         request_count=usage.request_count,
         total_tokens=usage.total_tokens,
+        input_tokens=usage.input_tokens,
         cached_input_tokens=usage.cached_input_tokens,
+        output_tokens=usage.output_tokens,
         total_cost_usd=usage.total_cost_usd,
         usage=V1UsageWindowsResponse(
             one_day=V1UsageWindowResponse(
                 request_count=windows.one_day.request_count,
                 total_tokens=windows.one_day.total_tokens,
+                input_tokens=windows.one_day.input_tokens,
                 cached_input_tokens=windows.one_day.cached_input_tokens,
+                output_tokens=windows.one_day.output_tokens,
                 total_cost_usd=windows.one_day.total_cost_usd,
             ),
             seven_days=V1UsageWindowResponse(
                 request_count=windows.seven_days.request_count,
                 total_tokens=windows.seven_days.total_tokens,
+                input_tokens=windows.seven_days.input_tokens,
                 cached_input_tokens=windows.seven_days.cached_input_tokens,
+                output_tokens=windows.seven_days.output_tokens,
                 total_cost_usd=windows.seven_days.total_cost_usd,
             ),
             thirty_days=V1UsageWindowResponse(
                 request_count=windows.thirty_days.request_count,
                 total_tokens=windows.thirty_days.total_tokens,
+                input_tokens=windows.thirty_days.input_tokens,
                 cached_input_tokens=windows.thirty_days.cached_input_tokens,
+                output_tokens=windows.thirty_days.output_tokens,
                 total_cost_usd=windows.thirty_days.total_cost_usd,
             ),
         ),

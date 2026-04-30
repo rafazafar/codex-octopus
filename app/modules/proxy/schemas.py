@@ -196,7 +196,9 @@ class V1UsageWindowResponse(BaseModel):
 
     request_count: int
     total_tokens: int
+    input_tokens: int
     cached_input_tokens: int
+    output_tokens: int
     total_cost_usd: float
 
 
@@ -213,6 +215,8 @@ class V1UsageResponse(BaseModel):
 
     request_count: int
     total_tokens: int
+    input_tokens: int
     cached_input_tokens: int
+    output_tokens: int
     total_cost_usd: float
     usage: V1UsageWindowsResponse
