@@ -26,7 +26,10 @@ export const LimitRuleCreateSchema = z.object({
 export const ApiKeyUsageSummarySchema = z.object({
   requestCount: z.number().int().nonnegative(),
   totalTokens: z.number().int().nonnegative(),
+  inputTokens: z.number().int().nonnegative().default(0),
+  billableInputTokens: z.number().int().nonnegative().default(0),
   cachedInputTokens: z.number().int().nonnegative(),
+  outputTokens: z.number().int().nonnegative().default(0),
   totalCostUsd: z.number().nonnegative().default(0),
 });
 

@@ -1,0 +1,5 @@
+- [x] 1. Add request-log token split fields to the backend response contract.
+- [x] 2. Add API-key usage summary token split fields to backend responses.
+- [x] 3. Update Dashboard/API request history and API-key summary UI displays.
+- [x] 4. Add/update backend and frontend tests for the split fields.
+- [x] 5. Run targeted verification and frontend build.

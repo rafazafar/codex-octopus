@@ -32,6 +32,17 @@ function isExpired(apiKey: ApiKey): boolean {
 	return new Date(apiKey.expiresAt).getTime() < Date.now();
 }
 
+function formatUsageParts(usage: NonNullable<ApiKey["usageSummary"]>): string {
+	const total = formatCompactNumber(usage.totalTokens);
+	const input = formatCompactNumber(usage.inputTokens);
+	const billable = formatCompactNumber(usage.billableInputTokens);
+	const cached = formatCompactNumber(usage.cachedInputTokens);
+	const output = formatCompactNumber(usage.outputTokens);
+	const requests = formatCompactNumber(usage.requestCount);
+	const cost = formatCurrency(usage.totalCostUsd);
+	return `${total} tok | in ${input} (${billable} billable / ${cached} cached) | out ${output} | ${requests} req | ${cost}`;
+}
+
 export function ApiKeyInfo({
 	apiKey,
 	usageSummary,
@@ -86,28 +97,12 @@ export function ApiKeyInfo({
 				</div>
 				<div className="flex items-start justify-between gap-2">
 					<dt className="text-muted-foreground">Usage</dt>
-					<dd className="text-right tabular-nums">
-						{hasUsage ? (
-							<span>
-								<span className="font-medium">
-									{formatCompactNumber(usage.totalTokens)} tok
-								</span>
-								<span className="mx-1 text-muted-foreground/40">|</span>
-								<span className="font-medium">
-									{formatCompactNumber(usage.cachedInputTokens)} cached
-								</span>
-								<span className="mx-1 text-muted-foreground/40">|</span>
-								<span className="font-medium">
-									{formatCompactNumber(usage.requestCount)} req
-								</span>
-								<span className="mx-1 text-muted-foreground/40">|</span>
-								<span className="font-medium">
-									{formatCurrency(usage.totalCostUsd)}
-								</span>
-							</span>
-						) : (
-							<span className="text-muted-foreground">
-								{usageMessage ?? "No usage recorded"}
+						<dd className="text-right tabular-nums">
+							{hasUsage ? (
+								<span className="font-medium">{formatUsageParts(usage)}</span>
+							) : (
+								<span className="text-muted-foreground">
+									{usageMessage ?? "No usage recorded"}
 							</span>
 						)}
 					</dd>

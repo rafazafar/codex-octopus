@@ -53,7 +53,10 @@ class UsageReservationData:
 class ApiKeyUsageSummary:
     request_count: int
     total_tokens: int
+    input_tokens: int
+    billable_input_tokens: int
     cached_input_tokens: int
+    output_tokens: int
     total_cost_usd: float
 
 
@@ -68,7 +71,10 @@ class ApiKeyTrendBucket:
 class ApiKeyUsageTotals:
     total_requests: int
     total_tokens: int
+    input_tokens: int
+    billable_input_tokens: int
     cached_input_tokens: int
+    output_tokens: int
     total_cost_usd: float
 
 
@@ -153,7 +159,10 @@ class ApiKeysRepository:
             summaries[api_key_id] = ApiKeyUsageSummary(
                 request_count=int(request_count or 0),
                 total_tokens=input_sum + output_sum,
+                input_tokens=input_sum,
+                billable_input_tokens=max(0, input_sum - cached_sum),
                 cached_input_tokens=cached_sum,
+                output_tokens=output_sum,
                 total_cost_usd=round(float(total_cost_usd or 0.0), 6),
             )
 
@@ -180,7 +189,10 @@ class ApiKeysRepository:
         return ApiKeyUsageSummary(
             request_count=int(row.request_count or 0),
             total_tokens=input_sum + output_sum,
+            input_tokens=input_sum,
+            billable_input_tokens=max(0, input_sum - cached_sum),
             cached_input_tokens=cached_sum,
+            output_tokens=output_sum,
             total_cost_usd=round(float(row.total_cost_usd or 0.0), 6),
         )
 
@@ -636,7 +648,10 @@ class ApiKeysRepository:
         return ApiKeyUsageTotals(
             total_requests=int(row.total_requests),
             total_tokens=input_sum + output_sum,
+            input_tokens=input_sum,
+            billable_input_tokens=max(0, input_sum - cached_sum),
             cached_input_tokens=cached_sum,
+            output_tokens=output_sum,
             total_cost_usd=round(float(row.total_cost_usd or 0.0), 6),
         )
 

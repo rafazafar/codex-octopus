@@ -59,14 +59,20 @@ function formatLimitSummary(limits: LimitRule[]): string {
 function formatUsageSummary(
   requestCount: number,
   totalTokens: number,
+  inputTokens: number,
+  billableInputTokens: number,
   cachedInputTokens: number,
+  outputTokens: number,
   totalCostUsd: number,
 ): string {
   const total = formatCompactNumber(totalTokens);
+  const input = formatCompactNumber(inputTokens);
+  const billable = formatCompactNumber(billableInputTokens);
   const cached = formatCompactNumber(cachedInputTokens);
+  const output = formatCompactNumber(outputTokens);
   const requests = formatCompactNumber(requestCount);
   const cost = formatCurrency(totalCostUsd);
-  return `${total} tok | ${cached} cached | ${requests} req | ${cost}`;
+  return `${total} tok | in ${input} (${billable} billable / ${cached} cached) | out ${output} | ${requests} req | ${cost}`;
 }
 
 function getUsageValue(apiKey: ApiKey): string {
@@ -77,7 +83,10 @@ function getUsageValue(apiKey: ApiKey): string {
   return formatUsageSummary(
     apiKey.usageSummary.requestCount,
     apiKey.usageSummary.totalTokens,
+    apiKey.usageSummary.inputTokens,
+    apiKey.usageSummary.billableInputTokens,
     apiKey.usageSummary.cachedInputTokens,
+    apiKey.usageSummary.outputTokens,
     apiKey.usageSummary.totalCostUsd,
   );
 }

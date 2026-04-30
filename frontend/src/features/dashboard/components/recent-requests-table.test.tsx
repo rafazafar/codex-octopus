@@ -69,7 +69,10 @@ describe("RecentRequestsTable", () => {
             errorCode: "rate_limit_exceeded",
             errorMessage: longError,
             tokens: 1200,
+            inputTokens: 1000,
+            billableInputTokens: 800,
             cachedInputTokens: 200,
+            outputTokens: 200,
             reasoningEffort: "high",
             costUsd: 0.01,
             latencyMs: 1000,
@@ -84,6 +87,8 @@ describe("RecentRequestsTable", () => {
     expect(screen.getByText("Requested priority")).toBeInTheDocument();
     expect(screen.getByText("WS")).toBeInTheDocument();
     expect(screen.getByText("Rate limit")).toBeInTheDocument();
+    expect(screen.getByText("In 1K (800 billable / 200 cached)")).toBeInTheDocument();
+    expect(screen.getByText("Out 200")).toBeInTheDocument();
     expect(screen.getByText("rate_limit_exceeded")).toBeInTheDocument();
 
     const viewButton = screen.getByRole("button", { name: "View Details" });
@@ -135,10 +140,13 @@ describe("RecentRequestsTable", () => {
             transport: null,
             status: "ok",
             errorCode: null,
-            errorMessage: null,
-            tokens: 1,
-            cachedInputTokens: null,
-            reasoningEffort: null,
+	            errorMessage: null,
+	            tokens: 1,
+	            inputTokens: null,
+	            billableInputTokens: null,
+	            cachedInputTokens: null,
+	            outputTokens: null,
+	            reasoningEffort: null,
             costUsd: 0,
             latencyMs: 1,
           },
@@ -167,10 +175,13 @@ describe("RecentRequestsTable", () => {
             transport: "http",
             status: "error",
             errorCode: "upstream_error",
-            errorMessage: null,
-            tokens: 1,
-            cachedInputTokens: null,
-            reasoningEffort: null,
+	            errorMessage: null,
+	            tokens: 1,
+	            inputTokens: null,
+	            billableInputTokens: null,
+	            cachedInputTokens: null,
+	            outputTokens: null,
+	            reasoningEffort: null,
             costUsd: 0,
             latencyMs: 1,
           },

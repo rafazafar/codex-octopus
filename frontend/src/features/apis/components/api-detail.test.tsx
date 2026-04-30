@@ -80,12 +80,15 @@ describe("ApiDetail", () => {
 	it("prefers the 7 day usage payload over list summary usage", () => {
 		renderApiDetail({
 			apiKey: createApiKey({
-				usageSummary: {
-					requestCount: 1,
-					totalTokens: 15,
-					cachedInputTokens: 0,
-					totalCostUsd: 0.01,
-				},
+					usageSummary: {
+						requestCount: 1,
+						totalTokens: 15,
+						inputTokens: 10,
+						billableInputTokens: 10,
+						cachedInputTokens: 0,
+						outputTokens: 5,
+						totalCostUsd: 0.01,
+					},
 			}),
 			usage7Day: createApiKeyUsage7Day({
 				totalTokens: 280_000,
@@ -104,12 +107,15 @@ describe("ApiDetail", () => {
 	it("does not fall back to list summary usage while the 7 day query is loading", () => {
 		renderApiDetail({
 			apiKey: createApiKey({
-				usageSummary: {
-					requestCount: 1,
-					totalTokens: 15,
-					cachedInputTokens: 0,
-					totalCostUsd: 0.01,
-				},
+					usageSummary: {
+						requestCount: 1,
+						totalTokens: 15,
+						inputTokens: 10,
+						billableInputTokens: 10,
+						cachedInputTokens: 0,
+						outputTokens: 5,
+						totalCostUsd: 0.01,
+					},
 			}),
 			usage7Day: null,
 			usage7DayLoading: true,
@@ -123,12 +129,15 @@ describe("ApiDetail", () => {
 	it("shows a usage error instead of falling back to list summary usage", () => {
 		renderApiDetail({
 			apiKey: createApiKey({
-				usageSummary: {
-					requestCount: 1,
-					totalTokens: 15,
-					cachedInputTokens: 0,
-					totalCostUsd: 0.01,
-				},
+					usageSummary: {
+						requestCount: 1,
+						totalTokens: 15,
+						inputTokens: 10,
+						billableInputTokens: 10,
+						cachedInputTokens: 0,
+						outputTokens: 5,
+						totalCostUsd: 0.01,
+					},
 			}),
 			usage7Day: null,
 			usage7DayError: "boom usage",

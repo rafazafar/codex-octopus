@@ -59,12 +59,15 @@ describe("ApiKeyInfo", () => {
 		render(
 			<ApiKeyInfo
 				apiKey={createApiKey({
-					usageSummary: {
-						requestCount: 0,
-						totalTokens: 0,
-						cachedInputTokens: 0,
-						totalCostUsd: 0,
-					},
+						usageSummary: {
+							requestCount: 0,
+							totalTokens: 0,
+							inputTokens: 0,
+							billableInputTokens: 0,
+							cachedInputTokens: 0,
+							outputTokens: 0,
+							totalCostUsd: 0,
+						},
 				})}
 			/>,
 		);
@@ -76,19 +79,23 @@ describe("ApiKeyInfo", () => {
 		render(
 			<ApiKeyInfo
 				apiKey={createApiKey({
-					usageSummary: {
-						requestCount: 150,
-						totalTokens: 50_000,
-						cachedInputTokens: 10_000,
-						totalCostUsd: 1.23,
-					},
+						usageSummary: {
+							requestCount: 150,
+							totalTokens: 50_000,
+							inputTokens: 40_000,
+							billableInputTokens: 30_000,
+							cachedInputTokens: 10_000,
+							outputTokens: 10_000,
+							totalCostUsd: 1.23,
+						},
 				})}
 			/>,
 		);
 
-		expect(screen.getByText(/50K tok/)).toBeInTheDocument();
-		expect(screen.getByText(/10K cached/)).toBeInTheDocument();
-		expect(screen.getByText(/150 req/)).toBeInTheDocument();
+			expect(screen.getByText(/50K tok/)).toBeInTheDocument();
+			expect(screen.getByText(/in 40K \(30K billable \/ 10K cached\)/)).toBeInTheDocument();
+			expect(screen.getByText(/out 10K/)).toBeInTheDocument();
+			expect(screen.getByText(/150 req/)).toBeInTheDocument();
 		expect(screen.getByText(/\$1.23/)).toBeInTheDocument();
 	});
 

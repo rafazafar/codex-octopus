@@ -8,7 +8,8 @@ The system SHALL expose `GET /v1/usage` for self-service usage lookup by API-key
 - `total_tokens`
 - `cached_input_tokens`
 - `total_cost_usd`
-- `limits[]` containing `limit_type`, `limit_window`, `max_value`, `current_value`, `remaining_value`, `model_filter`, and `reset_at`
+
+The response MUST NOT include API key limit or upstream quota-window details.
 
 Validation failures MUST use the existing OpenAI error envelope used by `/v1/*` routes.
 
@@ -30,7 +31,8 @@ Validation failures MUST use the existing OpenAI error envelope used by `/v1/*` 
 #### Scenario: Usage is scoped to the authenticated key
 
 - **WHEN** multiple API keys have request-log history and one of them calls `GET /v1/usage`
-- **THEN** the response includes only the usage totals and limits for that authenticated key
+- **THEN** the response includes only the usage totals for that authenticated key
+- **AND** the response does not include a `limits` field
 
 #### Scenario: Self-usage works while global proxy auth is disabled
 

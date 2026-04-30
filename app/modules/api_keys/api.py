@@ -62,7 +62,10 @@ def _to_response(row: ApiKeyData) -> ApiKeyResponse:
             ApiKeyUsageSummaryResponse(
                 request_count=row.usage_summary.request_count,
                 total_tokens=row.usage_summary.total_tokens,
+                input_tokens=row.usage_summary.input_tokens,
+                billable_input_tokens=row.usage_summary.billable_input_tokens,
                 cached_input_tokens=row.usage_summary.cached_input_tokens,
+                output_tokens=row.usage_summary.output_tokens,
                 total_cost_usd=row.usage_summary.total_cost_usd,
             )
             if row.usage_summary is not None
@@ -253,7 +256,10 @@ async def get_api_key_usage_7d(
     return ApiKeyUsage7DayResponse(
         key_id=result.key_id,
         total_tokens=result.total_tokens,
+        input_tokens=result.input_tokens,
+        billable_input_tokens=result.billable_input_tokens,
         total_cost_usd=result.total_cost_usd,
         total_requests=result.total_requests,
         cached_input_tokens=result.cached_input_tokens,
+        output_tokens=result.output_tokens,
     )

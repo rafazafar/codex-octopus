@@ -54,6 +54,32 @@ const TRANSPORT_CLASS_MAP: Record<string, string> = {
     "bg-indigo-500/15 text-indigo-700 border-indigo-500/20 hover:bg-indigo-500/20 dark:text-indigo-300",
 };
 
+function formatTokenBreakdown(request: RequestLog): string[] {
+  const lines: string[] = [];
+  const input = request.inputTokens;
+  const billableInput = request.billableInputTokens;
+  const cachedInput = request.cachedInputTokens;
+  const output = request.outputTokens;
+
+  if (input != null) {
+    if (cachedInput != null && cachedInput > 0 && billableInput != null) {
+      lines.push(
+        `In ${formatCompactNumber(input)} (${formatCompactNumber(billableInput)} billable / ${formatCompactNumber(cachedInput)} cached)`,
+      );
+    } else {
+      lines.push(`In ${formatCompactNumber(input)}`);
+    }
+  } else if (cachedInput != null && cachedInput > 0) {
+    lines.push(`${formatCompactNumber(cachedInput)} cached input`);
+  }
+
+  if (output != null) {
+    lines.push(`Out ${formatCompactNumber(output)}`);
+  }
+
+  return lines;
+}
+
 export type RecentRequestsTableProps = {
   requests: RequestLog[];
   accounts: AccountSummary[];
@@ -194,11 +220,11 @@ export function RecentRequestsTable({
                   <TableCell className="text-right align-top font-mono text-xs tabular-nums">
                     <div className="leading-tight">
                       <div>{formatCompactNumber(request.tokens)}</div>
-                      {request.cachedInputTokens != null && request.cachedInputTokens > 0 && (
-                        <div className="text-[11px] text-muted-foreground">
-                          {formatCompactNumber(request.cachedInputTokens)} Cached
+                      {formatTokenBreakdown(request).map((line) => (
+                        <div key={line} className="text-[11px] text-muted-foreground">
+                          {line}
                         </div>
-                      )}
+                      ))}
                     </div>
                   </TableCell>
                   <TableCell className="text-right align-top font-mono text-xs tabular-nums">
@@ -271,6 +297,7 @@ export function RecentRequestsTable({
                 <RequestDetailField label="Model" value={selectedRequest ? formatModelLabel(selectedRequest.model, selectedRequest.reasoningEffort, selectedRequest.actualServiceTier ?? selectedRequest.serviceTier) : "—"} mono />
                 <RequestDetailField label="Transport" value={selectedRequest?.transport ? (TRANSPORT_LABELS[selectedRequest.transport] ?? selectedRequest.transport) : "—"} />
                 <RequestDetailField label="Time" value={selectedRequest ? formatDateTimeInline(selectedRequest.requestedAt) : "—"} />
+                <RequestDetailField label="Tokens" value={selectedRequest ? formatTokenBreakdown(selectedRequest).join(" | ") || formatCompactNumber(selectedRequest.tokens) : "—"} mono />
                 <RequestDetailField label="Error Code" value={selectedRequest?.errorCode ?? "—"} mono />
               </div>
             </div>

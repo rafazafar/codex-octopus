@@ -26,6 +26,11 @@ def log_status(log: RequestLog) -> str:
 
 def to_request_log_entry(log: RequestLog, *, api_key_name: str | None = None) -> RequestLogEntry:
     log_like = typing_cast(RequestLogLike, log)
+    cached_input_tokens = cached_input_tokens_from_log(log_like)
+    output_tokens = log.output_tokens if log.output_tokens is not None else log.reasoning_tokens
+    billable_input_tokens = None
+    if log.input_tokens is not None:
+        billable_input_tokens = max(0, log.input_tokens - (cached_input_tokens or 0))
     return RequestLogEntry(
         requested_at=log.requested_at,
         account_id=log.account_id,
@@ -41,7 +46,10 @@ def to_request_log_entry(log: RequestLog, *, api_key_name: str | None = None) ->
         error_code=log.error_code,
         error_message=log.error_message,
         tokens=total_tokens_from_log(log_like),
-        cached_input_tokens=cached_input_tokens_from_log(log_like),
+        input_tokens=log.input_tokens,
+        billable_input_tokens=billable_input_tokens,
+        cached_input_tokens=cached_input_tokens,
+        output_tokens=output_tokens,
         cost_usd=cost_from_log(log_like, precision=6),
         latency_ms=log.latency_ms,
         latency_first_token_ms=log.latency_first_token_ms,

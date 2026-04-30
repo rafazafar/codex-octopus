@@ -52,7 +52,10 @@ class ApiKeyUpdateRequest(DashboardModel):
 class ApiKeyUsageSummaryResponse(DashboardModel):
     request_count: int
     total_tokens: int
+    input_tokens: int
+    billable_input_tokens: int
     cached_input_tokens: int
+    output_tokens: int
     total_cost_usd: float
 
 
@@ -92,6 +95,9 @@ class ApiKeyTrendsResponse(DashboardModel):
 class ApiKeyUsage7DayResponse(DashboardModel):
     key_id: str
     total_tokens: int = 0
+    input_tokens: int = 0
+    billable_input_tokens: int = 0
     total_cost_usd: float = 0
     total_requests: int = 0
     cached_input_tokens: int = 0
+    output_tokens: int = 0

@@ -83,7 +83,10 @@ export function ApiDetail({
 		return {
 			requestCount: usage7Day.totalRequests,
 			totalTokens: usage7Day.totalTokens,
+			inputTokens: usage7Day.inputTokens,
+			billableInputTokens: usage7Day.billableInputTokens,
 			cachedInputTokens: usage7Day.cachedInputTokens,
+			outputTokens: usage7Day.outputTokens,
 			totalCostUsd: usage7Day.totalCostUsd,
 		};
 	}, [usage7Day]);

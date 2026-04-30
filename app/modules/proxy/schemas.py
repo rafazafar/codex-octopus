@@ -198,4 +198,3 @@ class V1UsageResponse(BaseModel):
     total_tokens: int
     cached_input_tokens: int
     total_cost_usd: float
-    limits: list[V1UsageLimitResponse]

@@ -14,9 +14,12 @@ export const ApiKeyTrendsResponseSchema = z.object({
 export const ApiKeyUsage7DayResponseSchema = z.object({
   keyId: z.string(),
   totalTokens: z.number().int(),
+  inputTokens: z.number().int().default(0),
+  billableInputTokens: z.number().int().default(0),
   totalCostUsd: z.number(),
   totalRequests: z.number().int(),
   cachedInputTokens: z.number().int(),
+  outputTokens: z.number().int().default(0),
 });
 
 export type ApiKeyTrendPoint = z.infer<typeof ApiKeyTrendPointSchema>;

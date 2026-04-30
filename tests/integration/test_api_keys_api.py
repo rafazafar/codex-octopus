@@ -747,7 +747,10 @@ async def test_api_key_usage_tracking_and_request_log_link(async_client, monkeyp
     assert usage_key_row["usageSummary"] is not None
     assert usage_key_row["usageSummary"]["requestCount"] == 1
     assert usage_key_row["usageSummary"]["totalTokens"] == 15
+    assert usage_key_row["usageSummary"]["inputTokens"] == 10
+    assert usage_key_row["usageSummary"]["billableInputTokens"] == 10
     assert usage_key_row["usageSummary"]["cachedInputTokens"] == 0
+    assert usage_key_row["usageSummary"]["outputTokens"] == 5
     assert usage_key_row["usageSummary"]["totalCostUsd"] == 0.0
 
 

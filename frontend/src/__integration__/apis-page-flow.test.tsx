@@ -136,12 +136,15 @@ describe("apis page integration", () => {
 						name: "Custom analytics key",
 						allowedModels: null,
 						expiresAt: null,
-						usageSummary: {
-							requestCount: 42,
-							totalTokens: 12_000,
-							cachedInputTokens: 3_000,
-							totalCostUsd: 0.42,
-						},
+							usageSummary: {
+								requestCount: 42,
+								totalTokens: 12_000,
+								inputTokens: 9_000,
+								billableInputTokens: 6_000,
+								cachedInputTokens: 3_000,
+								outputTokens: 3_000,
+								totalCostUsd: 0.42,
+							},
 					}),
 				]),
 			),
@@ -162,9 +165,12 @@ describe("apis page integration", () => {
 				return HttpResponse.json(
 					createApiKeyUsage7Day({
 						keyId: String(params.keyId),
-						totalTokens: 12_000,
-						cachedInputTokens: 3_000,
-						totalRequests: 42,
+							totalTokens: 12_000,
+							inputTokens: 9_000,
+							billableInputTokens: 6_000,
+							cachedInputTokens: 3_000,
+							outputTokens: 3_000,
+							totalRequests: 42,
 						totalCostUsd: 0.42,
 					}),
 				);
@@ -214,10 +220,13 @@ describe("apis page integration", () => {
 							actualServiceTier: null,
 							status: "error",
 							errorCode: "upstream_error",
-							errorMessage: "Default key failure",
-							tokens: 1800,
-							cachedInputTokens: 320,
-							reasoningEffort: null,
+								errorMessage: "Default key failure",
+								tokens: 1800,
+								inputTokens: 1500,
+								billableInputTokens: 1180,
+								cachedInputTokens: 320,
+								outputTokens: 300,
+								reasoningEffort: null,
 							costUsd: 0.0132,
 							latencyMs: 920,
 						},
@@ -235,10 +244,13 @@ describe("apis page integration", () => {
 							actualServiceTier: null,
 							status: "error",
 							errorCode: "rate_limit_exceeded",
-							errorMessage: "History-only failure",
-							tokens: 0,
-							cachedInputTokens: null,
-							reasoningEffort: null,
+								errorMessage: "History-only failure",
+								tokens: 0,
+								inputTokens: null,
+								billableInputTokens: null,
+								cachedInputTokens: null,
+								outputTokens: null,
+								reasoningEffort: null,
 							costUsd: 0,
 							latencyMs: 120,
 						},
@@ -272,10 +284,9 @@ describe("apis page integration", () => {
 
 		renderWithProviders(<App />);
 
-		expect(await screen.findByRole("heading", { name: "Read only key" })).toBeInTheDocument();
-		expect(screen.getByRole("tab", { name: "History" })).toHaveAttribute("data-state", "active");
-		expect(await screen.findByText("Scoped to Read only key")).toBeInTheDocument();
-		expect(await screen.findByText("History-only failure")).toBeInTheDocument();
+			expect(await screen.findByRole("heading", { name: "Read only key" })).toBeInTheDocument();
+			expect(screen.getByRole("tab", { name: "History" })).toHaveAttribute("data-state", "active");
+			expect(await screen.findByText("History-only failure")).toBeInTheDocument();
 		expect(screen.getByText("secondary@example.com")).toBeInTheDocument();
 		expect(screen.queryByText("Default key failure")).not.toBeInTheDocument();
 
@@ -295,11 +306,10 @@ describe("apis page integration", () => {
 		await user.click(getDialogFooterClose(dialog));
 		await user.click(screen.getByRole("button", { name: /Default key/i }));
 
-		expect(await screen.findByRole("heading", { name: "Default key" })).toBeInTheDocument();
-		expect(screen.getByRole("tab", { name: "History" })).toHaveAttribute("data-state", "active");
-		expect(await screen.findByText("Scoped to Default key")).toBeInTheDocument();
+			expect(await screen.findByRole("heading", { name: "Default key" })).toBeInTheDocument();
+			expect(screen.getByRole("tab", { name: "History" })).toHaveAttribute("data-state", "active");
 
-		expect(requestLogApiKeyIds).toContain("key_2");
+			expect(requestLogApiKeyIds).toContain("key_2");
 		expect(requestLogApiKeyIds).toContain("key_1");
 		expect(optionApiKeyIds).toContain("key_2");
 		expect(optionApiKeyIds).toContain("key_1");

@@ -257,7 +257,10 @@ class ApiKeyCreatedData(ApiKeyData):
 class ApiKeyUsageSummaryData:
     request_count: int
     total_tokens: int
+    input_tokens: int
+    billable_input_tokens: int
     cached_input_tokens: int
+    output_tokens: int
     total_cost_usd: float
 
 
@@ -786,9 +789,12 @@ class ApiKeysService:
         return ApiKeyUsage7DayData(
             key_id=key_id,
             total_tokens=data.total_tokens,
+            input_tokens=data.input_tokens,
+            billable_input_tokens=data.billable_input_tokens,
             total_cost_usd=data.total_cost_usd,
             total_requests=data.total_requests,
             cached_input_tokens=data.cached_input_tokens,
+            output_tokens=data.output_tokens,
         )
 
 
@@ -809,9 +815,12 @@ class ApiKeyTrendsData:
 class ApiKeyUsage7DayData:
     key_id: str
     total_tokens: int = 0
+    input_tokens: int = 0
+    billable_input_tokens: int = 0
     total_cost_usd: float = 0.0
     total_requests: int = 0
     cached_input_tokens: int = 0
+    output_tokens: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -1138,7 +1147,10 @@ def _to_usage_summary_data(summary: ApiKeyUsageSummary | None) -> ApiKeyUsageSum
     return ApiKeyUsageSummaryData(
         request_count=summary.request_count,
         total_tokens=summary.total_tokens,
+        input_tokens=summary.input_tokens,
+        billable_input_tokens=summary.billable_input_tokens,
         cached_input_tokens=summary.cached_input_tokens,
+        output_tokens=summary.output_tokens,
         total_cost_usd=summary.total_cost_usd,
     )
 
