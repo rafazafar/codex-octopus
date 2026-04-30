@@ -213,8 +213,9 @@ class V1UsageWindowsResponse(BaseModel):
 class V1DailyUsageEntryResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    requests: int
     tokens: int
-    cost_isd: float
+    cost_usd: float
 
 
 class V1UsageResponse(BaseModel):

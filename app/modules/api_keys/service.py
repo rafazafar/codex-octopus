@@ -830,16 +830,16 @@ class ApiKeysService:
         start_day = now.date() - timedelta(days=29)
         since = datetime.combine(start_day, time.min)
         rows = await self._repository.daily_usage_by_key(key_id, since, now)
-        by_day = {row.day: row for row in rows}
         daily_usage: list[ApiKeySelfDailyUsageData] = []
-        for offset in range(30):
-            day = start_day + timedelta(days=offset)
-            usage = by_day.get(day)
+        for usage in rows:
+            if usage.tokens <= 0:
+                continue
             daily_usage.append(
                 ApiKeySelfDailyUsageData(
-                    date=day,
-                    tokens=usage.tokens if usage is not None else 0,
-                    cost_usd=usage.cost_usd if usage is not None else 0.0,
+                    date=usage.day,
+                    requests=usage.requests,
+                    tokens=usage.tokens,
+                    cost_usd=usage.cost_usd,
                 )
             )
         return daily_usage
@@ -890,6 +890,7 @@ class ApiKeySelfUsageWindowsData:
 @dataclass(frozen=True, slots=True)
 class ApiKeySelfDailyUsageData:
     date: date
+    requests: int = 0
     tokens: int = 0
     cost_usd: float = 0.0
 

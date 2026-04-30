@@ -382,8 +382,9 @@ async def v1_usage(
         ),
         daily_usage={
             day.date.strftime("%d_%m_%Y"): V1DailyUsageEntryResponse(
+                requests=day.requests,
                 tokens=day.tokens,
-                cost_isd=day.cost_usd,
+                cost_usd=day.cost_usd,
             )
             for day in daily_usage
         },

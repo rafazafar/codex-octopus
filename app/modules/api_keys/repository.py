@@ -70,6 +70,7 @@ class ApiKeyTrendBucket:
 @dataclass(frozen=True, slots=True)
 class ApiKeyDailyUsage:
     day: date
+    requests: int
     tokens: int
     cost_usd: float
 
@@ -641,6 +642,7 @@ class ApiKeysRepository:
         stmt = (
             select(
                 day_col,
+                func.count(RequestLog.id).label("requests"),
                 func.coalesce(func.sum(RequestLog.input_tokens), 0).label("input_tokens"),
                 func.coalesce(
                     func.sum(func.coalesce(RequestLog.output_tokens, RequestLog.reasoning_tokens, 0)),
@@ -668,6 +670,7 @@ class ApiKeysRepository:
             rows.append(
                 ApiKeyDailyUsage(
                     day=day,
+                    requests=int(row.requests or 0),
                     tokens=billable_input_tokens + output_sum,
                     cost_usd=round(float(row.cost_usd or 0.0), 6),
                 )
