@@ -11,6 +11,7 @@ The system SHALL expose `GET /v1/usage` for self-service usage lookup by API-key
 - `output_tokens`
 - `total_cost_usd`
 - `usage` containing `1d`, `7d`, and `30d` windows, each with `request_count`, `total_tokens`, `input_tokens`, `cached_input_tokens`, `output_tokens`, and `total_cost_usd`
+- `daily_usage` containing exactly 30 UTC calendar-day rows, ordered oldest to newest, each with `date`, non-cached `tokens`, and `cost_usd`
 
 The response MUST NOT include API key limit or upstream quota-window details.
 
@@ -31,12 +32,15 @@ Validation failures MUST use the existing OpenAI error envelope used by `/v1/*` 
 - **WHEN** a valid API key with no request-log usage calls `GET /v1/usage`
 - **THEN** the system returns `request_count: 0`, `total_tokens: 0`, `input_tokens: 0`, `cached_input_tokens: 0`, `output_tokens: 0`, `total_cost_usd: 0.0`
 - **AND** the `usage.1d`, `usage.7d`, and `usage.30d` windows each return zero usage values
+- **AND** `daily_usage` returns 30 rows with zero `tokens` and zero `cost_usd`
 
 #### Scenario: Usage is scoped to the authenticated key
 
 - **WHEN** multiple API keys have request-log history and one of them calls `GET /v1/usage`
 - **THEN** the response includes only the usage totals for that authenticated key
 - **AND** `usage.1d`, `usage.7d`, and `usage.30d` each include only request logs in their corresponding trailing window
+- **AND** `daily_usage` includes only the authenticated key's request logs from the last 30 UTC calendar days
+- **AND** each `daily_usage` row's `tokens` value equals billable input tokens plus output tokens for that day
 - **AND** the response does not include a `limits` field
 
 #### Scenario: Self-usage works while global proxy auth is disabled

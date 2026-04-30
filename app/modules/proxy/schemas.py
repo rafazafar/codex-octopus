@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.types import JsonValue
@@ -210,6 +212,14 @@ class V1UsageWindowsResponse(BaseModel):
     thirty_days: V1UsageWindowResponse = Field(alias="30d")
 
 
+class V1DailyUsageResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    date: date
+    tokens: int
+    cost_usd: float
+
+
 class V1UsageResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -220,3 +230,4 @@ class V1UsageResponse(BaseModel):
     output_tokens: int
     total_cost_usd: float
     usage: V1UsageWindowsResponse
+    daily_usage: list[V1DailyUsageResponse]

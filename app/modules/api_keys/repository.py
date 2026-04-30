@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 
 from sqlalchemy import Integer, cast, delete, func, select, update
@@ -65,6 +65,13 @@ class ApiKeyTrendBucket:
     bucket_epoch: int
     total_tokens: int
     total_cost_usd: float
+
+
+@dataclass(frozen=True, slots=True)
+class ApiKeyDailyUsage:
+    day: date
+    tokens: int
+    cost_usd: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -623,6 +630,49 @@ class ApiKeysRepository:
             )
             for row in result.all()
         ]
+
+    async def daily_usage_by_key(
+        self,
+        key_id: str,
+        since: datetime,
+        until: datetime,
+    ) -> list[ApiKeyDailyUsage]:
+        day_col = func.date(RequestLog.requested_at).label("day")
+        stmt = (
+            select(
+                day_col,
+                func.coalesce(func.sum(RequestLog.input_tokens), 0).label("input_tokens"),
+                func.coalesce(
+                    func.sum(func.coalesce(RequestLog.output_tokens, RequestLog.reasoning_tokens, 0)),
+                    0,
+                ).label("output_tokens"),
+                func.coalesce(func.sum(RequestLog.cached_input_tokens), 0).label("cached_input_tokens"),
+                func.coalesce(func.sum(RequestLog.cost_usd), 0.0).label("cost_usd"),
+            )
+            .where(
+                RequestLog.api_key_id == key_id,
+                RequestLog.requested_at >= since,
+                RequestLog.requested_at < until,
+            )
+            .group_by(day_col)
+            .order_by(day_col)
+        )
+        result = await self._session.execute(stmt)
+        rows: list[ApiKeyDailyUsage] = []
+        for row in result.all():
+            day = row.day if isinstance(row.day, date) else date.fromisoformat(str(row.day))
+            input_sum = int(row.input_tokens or 0)
+            output_sum = int(row.output_tokens or 0)
+            cached_sum = int(row.cached_input_tokens or 0)
+            billable_input_tokens = max(0, input_sum - max(0, min(cached_sum, input_sum)))
+            rows.append(
+                ApiKeyDailyUsage(
+                    day=day,
+                    tokens=billable_input_tokens + output_sum,
+                    cost_usd=round(float(row.cost_usd or 0.0), 6),
+                )
+            )
+        return rows
 
     async def usage_between(self, key_id: str, since: datetime, until: datetime) -> ApiKeyUsageTotals:
         stmt = select(

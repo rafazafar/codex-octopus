@@ -76,6 +76,7 @@ from app.modules.proxy.schemas import (
     ModelMetadata,
     RateLimitStatusPayload,
     ReasoningLevelSchema,
+    V1DailyUsageResponse,
     V1UsageLimitResponse,
     V1UsageResponse,
     V1UsageWindowResponse,
@@ -341,8 +342,9 @@ async def v1_usage(
         service = ApiKeysService(ApiKeysRepository(session))
         usage = await service.get_key_usage_summary_for_self(api_key.id)
         windows = await service.get_key_usage_windows_for_self(api_key.id)
+        daily_usage = await service.get_key_daily_usage_for_self(api_key.id)
 
-    if usage is None or windows is None:
+    if usage is None or windows is None or daily_usage is None:
         raise ProxyAuthError("Invalid API key")
 
     return V1UsageResponse(
@@ -378,6 +380,14 @@ async def v1_usage(
                 total_cost_usd=windows.thirty_days.total_cost_usd,
             ),
         ),
+        daily_usage=[
+            V1DailyUsageResponse(
+                date=day.date,
+                tokens=day.tokens,
+                cost_usd=day.cost_usd,
+            )
+            for day in daily_usage
+        ],
     )
 
 

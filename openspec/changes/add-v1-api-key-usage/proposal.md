@@ -6,7 +6,7 @@ codex-lb API keys can authenticate `/v1/*` requests, but there is no matching se
 
 - Add `GET /v1/usage` for API-key-authenticated self-usage lookup.
 - Require a valid Bearer API key for this endpoint even when the global `api_key_auth_enabled` switch is off.
-- Return usage totals and current limit state for the authenticated key only.
+- Return usage totals and a lean day-by-day usage breakdown for the authenticated key only.
 
 ## Capabilities
 

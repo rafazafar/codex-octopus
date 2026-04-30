@@ -4,7 +4,7 @@ import json
 import secrets
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from hashlib import sha256
 from typing import Protocol
 
@@ -19,6 +19,7 @@ from app.core.utils.time import to_utc_naive, utcnow
 from app.db.models import Account, ApiKey, ApiKeyLimit, LimitType, LimitWindow
 from app.modules.api_keys.repository import (
     _UNSET,
+    ApiKeyDailyUsage,
     ApiKeyTrendBucket,
     ApiKeyUsageSummary,
     ApiKeyUsageTotals,
@@ -160,6 +161,13 @@ class ApiKeysRepositoryProtocol(Protocol):
         since: datetime,
         until: datetime,
     ) -> ApiKeyUsageTotals: ...
+
+    async def daily_usage_by_key(
+        self,
+        key_id: str,
+        since: datetime,
+        until: datetime,
+    ) -> list[ApiKeyDailyUsage]: ...
 
 
 class ApiKeyNotFoundError(ValueError):
@@ -814,6 +822,28 @@ class ApiKeysService:
             ),
         )
 
+    async def get_key_daily_usage_for_self(self, key_id: str) -> list[ApiKeySelfDailyUsageData] | None:
+        row = await self._repository.get_by_id(key_id)
+        if row is None:
+            return None
+        now = utcnow()
+        start_day = now.date() - timedelta(days=29)
+        since = datetime.combine(start_day, time.min)
+        rows = await self._repository.daily_usage_by_key(key_id, since, now)
+        by_day = {row.day: row for row in rows}
+        daily_usage: list[ApiKeySelfDailyUsageData] = []
+        for offset in range(30):
+            day = start_day + timedelta(days=offset)
+            usage = by_day.get(day)
+            daily_usage.append(
+                ApiKeySelfDailyUsageData(
+                    date=day,
+                    tokens=usage.tokens if usage is not None else 0,
+                    cost_usd=usage.cost_usd if usage is not None else 0.0,
+                )
+            )
+        return daily_usage
+
 
 @dataclass(frozen=True, slots=True)
 class ApiKeyTrendsPoint:
@@ -855,6 +885,13 @@ class ApiKeySelfUsageWindowsData:
     one_day: ApiKeySelfUsageWindowData
     seven_days: ApiKeySelfUsageWindowData
     thirty_days: ApiKeySelfUsageWindowData
+
+
+@dataclass(frozen=True, slots=True)
+class ApiKeySelfDailyUsageData:
+    date: date
+    tokens: int = 0
+    cost_usd: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)
