@@ -647,6 +647,65 @@ async def test_api_key_enforces_service_tier_for_responses(async_client, monkeyp
 
 
 @pytest.mark.asyncio
+async def test_api_key_enforced_default_service_tier_clears_request_tier(async_client, monkeypatch):
+    await _populate_test_registry()
+    model_ids = sorted(_TEST_MODELS)
+    model = model_ids[0]
+
+    enable = await async_client.put(
+        "/api/settings",
+        json={
+            "stickyThreadsEnabled": False,
+            "preferEarlierResetAccounts": False,
+            "totpRequiredOnLogin": False,
+            "apiKeyAuthEnabled": True,
+        },
+    )
+    assert enable.status_code == 200
+
+    created = await async_client.post(
+        "/api/api-keys/",
+        json={
+            "name": "enforced-normal-service-tier",
+            "allowedModels": [model],
+            "enforcedServiceTier": "default",
+        },
+    )
+    assert created.status_code == 200
+    key = created.json()["key"]
+    assert created.json()["enforcedServiceTier"] == "default"
+
+    await _import_account(async_client, "acc_enforced_normal_service_tier", "enforced-normal-tier@example.com")
+
+    seen: dict[str, str | None] = {}
+
+    async def fake_stream(payload, _headers, _access_token, _account_id, base_url=None, raise_for_status=False):
+        seen["service_tier"] = payload.service_tier
+        usage = {"input_tokens": 3, "output_tokens": 2}
+        event = {"type": "response.completed", "response": {"id": "resp_enforced_normal_service_tier", "usage": usage}}
+        yield f"data: {json.dumps(event)}\n\n"
+
+    monkeypatch.setattr(proxy_module, "core_stream_responses", fake_stream)
+
+    async with async_client.stream(
+        "POST",
+        "/backend-api/codex/responses",
+        headers={"Authorization": f"Bearer {key}"},
+        json={
+            "model": model,
+            "instructions": "hi",
+            "input": [],
+            "service_tier": "priority",
+            "stream": True,
+        },
+    ) as response:
+        assert response.status_code == 200
+        _ = [line async for line in response.aiter_lines() if line]
+
+    assert seen["service_tier"] is None
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("endpoint", ["/backend-api/codex/responses/compact", "/v1/responses/compact"])
 async def test_api_key_enforces_model_and_reasoning_for_compact_responses(async_client, monkeypatch, endpoint):
     await _populate_test_registry()

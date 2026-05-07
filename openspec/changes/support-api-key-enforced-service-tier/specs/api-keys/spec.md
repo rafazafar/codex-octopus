@@ -16,3 +16,8 @@ The dashboard API key CRUD surface MUST allow callers to persist an optional enf
 - **WHEN** a dashboard client updates an API key with `enforcedServiceTier: "flex"`
 - **THEN** the persisted API key stores `flex`
 - **AND** subsequent reads return `flex`
+
+#### Scenario: Dashboard names default tier as normal
+
+- **WHEN** the dashboard renders service tier enforcement options
+- **THEN** the option persisted as `default` is labeled `Normal`

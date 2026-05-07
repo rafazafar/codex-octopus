@@ -143,6 +143,35 @@ def test_apply_api_key_enforcement_overrides_service_tier_aliases_to_priority():
     assert payload.service_tier == "priority"
 
 
+def test_apply_api_key_enforcement_default_clears_service_tier():
+    payload = ResponsesRequest.model_validate(
+        {
+            "model": "gpt-5.4",
+            "instructions": "hello",
+            "input": [],
+            "service_tier": "priority",
+        }
+    )
+    api_key = proxy_service.ApiKeyData(
+        id="key_default",
+        name="default-service-tier-key",
+        key_prefix="sk-clb-default",
+        allowed_models=None,
+        enforced_model=None,
+        enforced_reasoning_effort=None,
+        enforced_service_tier="default",
+        expires_at=None,
+        is_active=True,
+        created_at=utcnow(),
+        last_used_at=None,
+    )
+
+    proxy_request_policy.apply_api_key_enforcement(payload, api_key)
+
+    assert payload.service_tier is None
+    assert "service_tier" not in payload.to_payload()
+
+
 def test_apply_api_key_enforcement_uses_mini_and_standard_tiers():
     mini_payload = ResponsesRequest.model_validate(
         {
@@ -4144,6 +4173,58 @@ async def test_prepare_websocket_response_create_request_normalizes_payload_and_
     assert normalized_payload["model"] == "gpt-5.2"
     assert normalized_payload["reasoning"] == {"effort": "high"}
     assert normalized_payload["service_tier"] == "priority"
+
+
+@pytest.mark.asyncio
+async def test_prepare_websocket_response_create_request_clears_default_enforced_service_tier(monkeypatch):
+    request_logs = _RequestLogsRecorder()
+    service = proxy_service.ProxyService(_repo_factory(request_logs))
+    reserve_usage = AsyncMock(return_value=None)
+    api_key = ApiKeyData(
+        id="key_default_tier",
+        name="default-tier",
+        key_prefix="sk-default-tier",
+        allowed_models=None,
+        enforced_model=None,
+        enforced_reasoning_effort=None,
+        enforced_service_tier="default",
+        expires_at=None,
+        is_active=True,
+        created_at=utcnow(),
+        last_used_at=None,
+    )
+
+    monkeypatch.setattr(service, "_reserve_websocket_api_key_usage", reserve_usage)
+    monkeypatch.setattr(
+        service,
+        "_refresh_websocket_api_key_policy",
+        AsyncMock(return_value=api_key),
+    )
+
+    prepared = await service._prepare_websocket_response_create_request(
+        {
+            "type": "response.create",
+            "model": "gpt-5.5",
+            "input": "hello",
+            "service_tier": "priority",
+        },
+        headers={},
+        codex_session_affinity=False,
+        openai_cache_affinity=True,
+        sticky_threads_enabled=False,
+        openai_cache_affinity_max_age_seconds=300,
+        api_key=api_key,
+    )
+
+    reserve_usage.assert_awaited_once_with(
+        api_key,
+        request_model="gpt-5.5",
+        request_service_tier=None,
+    )
+    assert prepared.request_state.service_tier is None
+    assert prepared.request_state.requested_service_tier is None
+    normalized_payload = json.loads(prepared.text_data)
+    assert "service_tier" not in normalized_payload
 
 
 @pytest.mark.asyncio
