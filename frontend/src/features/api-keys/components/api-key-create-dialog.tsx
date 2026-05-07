@@ -24,7 +24,7 @@ import {
   EMPTY_TIERED_MODEL_ENFORCEMENT,
   tieredModelEnforcementToPayload,
 } from "@/features/api-keys/components/tiered-model-enforcement-utils";
-import type { ApiKeyCreateRequest, LimitRuleCreate, ReasoningEffortType, ServiceTierType } from "@/features/api-keys/schemas";
+import type { ApiKeyCreateRequest, LimitRuleCreate, ServiceTierType } from "@/features/api-keys/schemas";
 import {
   Select,
   SelectContent,
@@ -55,8 +55,6 @@ export function ApiKeyCreateDialog({ open, busy, onOpenChange, onSubmit }: ApiKe
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [limitRules, setLimitRules] = useState<LimitRuleCreate[]>([]);
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
-  const [enforcedModel, setEnforcedModel] = useState("");
-  const [enforcedReasoningEffort, setEnforcedReasoningEffort] = useState("none");
   const [enforcedServiceTier, setEnforcedServiceTier] = useState("none");
   const [tieredEnforcement, setTieredEnforcement] = useState(EMPTY_TIERED_MODEL_ENFORCEMENT);
 
@@ -65,8 +63,6 @@ export function ApiKeyCreateDialog({ open, busy, onOpenChange, onSubmit }: ApiKe
     const payload: ApiKeyCreateRequest = {
       name: values.name,
       allowedModels: selectedModels.length > 0 ? selectedModels : undefined,
-      enforcedModel: enforcedModel.trim() ? enforcedModel.trim() : null,
-      enforcedReasoningEffort: enforcedReasoningEffort === "none" ? null : enforcedReasoningEffort as ReasoningEffortType,
       enforcedServiceTier: enforcedServiceTier === "none" ? null : enforcedServiceTier as ServiceTierType,
       enforcedModelTiers: tieredModelEnforcementToPayload(tieredEnforcement),
       expiresAt: expiresAt?.toISOString(),
@@ -81,8 +77,6 @@ export function ApiKeyCreateDialog({ open, busy, onOpenChange, onSubmit }: ApiKe
     setSelectedModels([]);
     setLimitRules([]);
     setExpiresAt(null);
-    setEnforcedModel("");
-    setEnforcedReasoningEffort("none");
     setEnforcedServiceTier("none");
     setTieredEnforcement(EMPTY_TIERED_MODEL_ENFORCEMENT);
     onOpenChange(false);
@@ -120,33 +114,6 @@ export function ApiKeyCreateDialog({ open, busy, onOpenChange, onSubmit }: ApiKe
                 <div className="space-y-1">
                   <label className="text-sm font-medium">Allowed models</label>
                   <ModelMultiSelect value={selectedModels} onChange={setSelectedModels} />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">Enforced model</label>
-                  <Input
-                    value={enforcedModel}
-                    onChange={(e) => setEnforcedModel(e.target.value)}
-                    placeholder="e.g. gpt-5.3-codex"
-                    autoComplete="off"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">Enforced reasoning</label>
-                  <Select value={enforcedReasoningEffort} onValueChange={setEnforcedReasoningEffort}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="None" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      <SelectItem value="minimal">Minimal</SelectItem>
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="xhigh">XHigh</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
 
                 <div className="space-y-1">

@@ -583,9 +583,6 @@ def _allowed_models_for_api_key(api_key: ApiKeyData | None) -> set[str] | None:
     tier_models = get_tier_enforced_models(api_key)
     if tier_models:
         return tier_models if allowed_models is None else (allowed_models & tier_models)
-    if api_key and api_key.enforced_model:
-        forced = {api_key.enforced_model}
-        return forced if allowed_models is None else (allowed_models & forced)
     return allowed_models
 
 

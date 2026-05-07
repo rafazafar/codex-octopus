@@ -440,19 +440,23 @@ async def test_create_key_normalizes_timezone_aware_expiry_to_utc_naive() -> Non
 
 
 @pytest.mark.asyncio
-async def test_create_key_rejects_enforced_model_outside_allowed_models() -> None:
+async def test_create_key_ignores_legacy_scalar_model_enforcement() -> None:
     repo = _FakeApiKeysRepository()
     service = ApiKeysService(repo)
 
-    with pytest.raises(ValueError, match="enforced_model"):
-        await service.create_key(
-            ApiKeyCreateData(
-                name="invalid-policy",
-                allowed_models=["model-alpha"],
-                enforced_model="model-beta",
-                expires_at=None,
-            )
+    created = await service.create_key(
+        ApiKeyCreateData(
+            name="legacy-policy",
+            allowed_models=["model-alpha"],
+            enforced_model="model-beta",
+            expires_at=None,
         )
+    )
+
+    assert created.enforced_model is None
+    stored = await repo.get_by_id(created.id)
+    assert stored is not None
+    assert stored.enforced_model is None
 
 
 @pytest.mark.asyncio
@@ -509,7 +513,7 @@ async def test_create_key_rejects_tiered_model_outside_allowed_models() -> None:
 
 
 @pytest.mark.asyncio
-async def test_create_key_normalizes_enforced_reasoning_effort() -> None:
+async def test_create_key_ignores_legacy_scalar_reasoning_enforcement() -> None:
     repo = _FakeApiKeysRepository()
     service = ApiKeysService(repo)
 
@@ -522,7 +526,7 @@ async def test_create_key_normalizes_enforced_reasoning_effort() -> None:
         )
     )
 
-    assert created.enforced_reasoning_effort == "high"
+    assert created.enforced_reasoning_effort is None
 
 
 @pytest.mark.asyncio

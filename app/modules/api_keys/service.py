@@ -306,11 +306,8 @@ class ApiKeysService:
         expires_at = _normalize_expires_at(payload.expires_at)
         plain_key = _generate_plain_key()
         normalized_allowed_models = _normalize_allowed_models(payload.allowed_models)
-        enforced_model = _normalize_model_slug(payload.enforced_model)
-        enforced_reasoning_effort = _normalize_reasoning_effort(payload.enforced_reasoning_effort)
         enforced_service_tier = _normalize_service_tier(payload.enforced_service_tier)
         enforced_model_tiers = _normalize_enforced_model_tiers(payload.enforced_model_tiers)
-        _validate_model_enforcement(enforced_model=enforced_model, allowed_models=normalized_allowed_models)
         _validate_tiered_model_enforcement(
             enforced_model_tiers=enforced_model_tiers,
             allowed_models=normalized_allowed_models,
@@ -321,8 +318,8 @@ class ApiKeysService:
             key_hash=_hash_key(plain_key),
             key_prefix=plain_key[:15],
             allowed_models=_serialize_allowed_models(normalized_allowed_models),
-            enforced_model=enforced_model,
-            enforced_reasoning_effort=enforced_reasoning_effort,
+            enforced_model=None,
+            enforced_reasoning_effort=None,
             enforced_service_tier=enforced_service_tier,
             enforced_model_tiers=_serialize_enforced_model_tiers(enforced_model_tiers),
             expires_at=expires_at,
@@ -375,16 +372,6 @@ class ApiKeysService:
             assigned_account_ids = None
             account_assignment_scope_enabled = _UNSET
 
-        if payload.enforced_model_set:
-            enforced_model = _normalize_model_slug(payload.enforced_model)
-        else:
-            enforced_model = None
-
-        if payload.enforced_reasoning_effort_set:
-            enforced_reasoning_effort = _normalize_reasoning_effort(payload.enforced_reasoning_effort)
-        else:
-            enforced_reasoning_effort = None
-
         if payload.enforced_service_tier_set:
             enforced_service_tier = _normalize_service_tier(payload.enforced_service_tier)
         else:
@@ -395,21 +382,14 @@ class ApiKeysService:
         else:
             enforced_model_tiers = None
 
-        if payload.allowed_models_set or payload.enforced_model_set or payload.enforced_model_tiers_set:
+        if payload.allowed_models_set or payload.enforced_model_tiers_set:
             effective_allowed_models = (
                 allowed_models if payload.allowed_models_set else _deserialize_allowed_models(existing.allowed_models)
-            )
-            effective_enforced_model = (
-                enforced_model if payload.enforced_model_set else _normalize_model_slug(existing.enforced_model)
             )
             effective_enforced_model_tiers = (
                 enforced_model_tiers
                 if payload.enforced_model_tiers_set
                 else _deserialize_enforced_model_tiers(existing.enforced_model_tiers)
-            )
-            _validate_model_enforcement(
-                enforced_model=effective_enforced_model,
-                allowed_models=effective_allowed_models,
             )
             _validate_tiered_model_enforcement(
                 enforced_model_tiers=effective_enforced_model_tiers,
@@ -438,10 +418,8 @@ class ApiKeysService:
                 key_id,
                 name=_normalize_name(payload.name or "") if payload.name_set else _UNSET,
                 allowed_models=_serialize_allowed_models(allowed_models) if payload.allowed_models_set else _UNSET,
-                enforced_model=enforced_model if payload.enforced_model_set else _UNSET,
-                enforced_reasoning_effort=(
-                    enforced_reasoning_effort if payload.enforced_reasoning_effort_set else _UNSET
-                ),
+                enforced_model=None,
+                enforced_reasoning_effort=None,
                 enforced_service_tier=(enforced_service_tier if payload.enforced_service_tier_set else _UNSET),
                 enforced_model_tiers=(
                     _serialize_enforced_model_tiers(enforced_model_tiers)
@@ -1146,13 +1124,6 @@ def _deserialize_enforced_model_tiers(value: object) -> ApiKeyEnforcedModelTiers
     if mini is None and standard is None:
         return None
     return ApiKeyEnforcedModelTiersData(mini=mini, standard=standard)
-
-
-def _validate_model_enforcement(*, enforced_model: str | None, allowed_models: list[str] | None) -> None:
-    if enforced_model is None or not allowed_models:
-        return
-    if enforced_model not in allowed_models:
-        raise ValueError("enforced_model must be present in allowed_models when allowed_models is configured")
 
 
 def _validate_tiered_model_enforcement(

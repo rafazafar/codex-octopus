@@ -76,11 +76,6 @@ export const ApiKeySchema = z.object({
 export const ApiKeyCreateRequestSchema = z.object({
   name: z.string().min(1).max(128),
   allowedModels: z.array(z.string()).optional(),
-  enforcedModel: z.string().min(1).nullable().optional(),
-  enforcedReasoningEffort: z
-    .enum(REASONING_EFFORTS)
-    .nullable()
-    .optional(),
   enforcedServiceTier: z
     .enum(SERVICE_TIERS)
     .nullable()
@@ -98,11 +93,6 @@ export const ApiKeyCreateResponseSchema = ApiKeySchema.extend({
 export const ApiKeyUpdateRequestSchema = z.object({
   name: z.string().min(1).max(128).optional(),
   allowedModels: z.array(z.string()).nullable().optional(),
-  enforcedModel: z.string().min(1).nullable().optional(),
-  enforcedReasoningEffort: z
-    .enum(REASONING_EFFORTS)
-    .nullable()
-    .optional(),
   enforcedServiceTier: z
     .enum(SERVICE_TIERS)
     .nullable()

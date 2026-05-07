@@ -5,7 +5,6 @@ import {
 	ApiKeyEnforcedModelTiersSchema,
 	LIMIT_TYPES,
 	LIMIT_WINDOWS,
-	REASONING_EFFORTS,
 	SERVICE_TIERS,
 } from "@/features/api-keys/schemas";
 import {
@@ -51,8 +50,6 @@ const ApiKeyCreatePayloadSchema = z
 	.object({
 		name: z.string().optional(),
 		allowedModels: z.array(z.string()).nullable().optional(),
-		enforcedModel: z.string().nullable().optional(),
-		enforcedReasoningEffort: z.enum(REASONING_EFFORTS).nullable().optional(),
 		enforcedServiceTier: z.enum(SERVICE_TIERS).nullable().optional(),
 		enforcedModelTiers: ApiKeyEnforcedModelTiersPayloadSchema.optional(),
 	})
@@ -68,8 +65,6 @@ const ApiKeyUpdatePayloadSchema = z
 	.object({
 		name: z.string().optional(),
 		allowedModels: z.array(z.string()).nullable().optional(),
-		enforcedModel: z.string().nullable().optional(),
-		enforcedReasoningEffort: z.enum(REASONING_EFFORTS).nullable().optional(),
 		enforcedServiceTier: z.enum(SERVICE_TIERS).nullable().optional(),
 		enforcedModelTiers: ApiKeyEnforcedModelTiersPayloadSchema.optional(),
 		isActive: z.boolean().optional(),
@@ -1352,8 +1347,6 @@ export const handlers = [
 				id: `key_${sequence}`,
 				name: payload?.name ?? `API Key ${sequence}`,
 				allowedModels: payload?.allowedModels ?? null,
-				enforcedModel: payload?.enforcedModel ?? null,
-				enforcedReasoningEffort: payload?.enforcedReasoningEffort ?? null,
 				enforcedServiceTier: payload?.enforcedServiceTier ?? null,
 				enforcedModelTiers: payload?.enforcedModelTiers ?? null,
 			}),
@@ -1382,12 +1375,6 @@ export const handlers = [
 			...(payload.name !== undefined ? { name: payload.name } : {}),
 			...(payload.allowedModels !== undefined
 				? { allowedModels: payload.allowedModels }
-				: {}),
-			...(payload.enforcedModel !== undefined
-				? { enforcedModel: payload.enforcedModel }
-				: {}),
-			...(payload.enforcedReasoningEffort !== undefined
-				? { enforcedReasoningEffort: payload.enforcedReasoningEffort }
 				: {}),
 			...(payload.enforcedServiceTier !== undefined
 				? { enforcedServiceTier: payload.enforcedServiceTier }

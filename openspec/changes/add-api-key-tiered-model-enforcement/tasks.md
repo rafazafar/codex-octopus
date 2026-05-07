@@ -7,7 +7,7 @@
 ## 2. Proxy enforcement
 
 - [x] 2.1 Classify requested models into `mini` and `standard`.
-- [x] 2.2 Apply tiered model/reasoning overrides with scalar fallback.
+- [x] 2.2 Apply tiered model/reasoning overrides without scalar fallback.
 - [x] 2.3 Filter model-list responses to tier target models when tier model enforcement is configured.
 
 ## 3. Dashboard

@@ -38,8 +38,6 @@ def get_effective_model_for_api_key(api_key: ApiKeyData | None, requested_model:
     tier = _tier_for_requested_model(api_key, requested_model)
     if tier is not None and tier.model is not None:
         return tier.model
-    if api_key.enforced_model is not None:
-        return api_key.enforced_model
     return requested_model
 
 
@@ -62,12 +60,8 @@ def apply_api_key_enforcement(
         return
 
     tier = _tier_for_requested_model(api_key, payload.model)
-    enforced_model = tier.model if tier is not None and tier.model is not None else api_key.enforced_model
-    enforced_reasoning_effort = (
-        tier.reasoning_effort
-        if tier is not None and tier.reasoning_effort is not None
-        else api_key.enforced_reasoning_effort
-    )
+    enforced_model = tier.model if tier is not None and tier.model is not None else None
+    enforced_reasoning_effort = tier.reasoning_effort if tier is not None and tier.reasoning_effort is not None else None
 
     if enforced_model and payload.model != enforced_model:
         logger.info(

@@ -33,7 +33,7 @@ import {
   tieredModelEnforcementFromValue,
   tieredModelEnforcementToPayload,
 } from "@/features/api-keys/components/tiered-model-enforcement-utils";
-import type { ApiKey, ApiKeyUpdateRequest, LimitRuleCreate, LimitType, ReasoningEffortType, ServiceTierType } from "@/features/api-keys/schemas";
+import type { ApiKey, ApiKeyUpdateRequest, LimitRuleCreate, LimitType, ServiceTierType } from "@/features/api-keys/schemas";
 import { parseDate } from "@/utils/formatters";
 
 import { hasLimitRuleChanges, normalizeLimitRules } from "./limit-rules-utils";
@@ -92,10 +92,6 @@ function ApiKeyEditForm({ apiKey, busy, onSubmit, onClose }: ApiKeyEditFormProps
   const initialLimitRules = useMemo(() => limitsToCreateRules(apiKey), [apiKey]);
   const [limitRules, setLimitRules] = useState<LimitRuleCreate[]>(() => initialLimitRules);
   const [expiresAt, setExpiresAt] = useState<Date | null>(() => parseDate(apiKey.expiresAt));
-  const [enforcedModel, setEnforcedModel] = useState<string>(apiKey.enforcedModel || "");
-  const [enforcedReasoningEffort, setEnforcedReasoningEffort] = useState<string>(
-    apiKey.enforcedReasoningEffort || "none",
-  );
   const [enforcedServiceTier, setEnforcedServiceTier] = useState<string>(
     apiKey.enforcedServiceTier || "none",
   );
@@ -111,8 +107,6 @@ function ApiKeyEditForm({ apiKey, busy, onSubmit, onClose }: ApiKeyEditFormProps
     const payload: ApiKeyUpdateRequest = {
       name: values.name,
       allowedModels: selectedModels.length > 0 ? selectedModels : null,
-      enforcedModel: enforcedModel.trim() ? enforcedModel.trim() : null,
-      enforcedReasoningEffort: enforcedReasoningEffort === "none" ? null : enforcedReasoningEffort as ReasoningEffortType,
       enforcedServiceTier: enforcedServiceTier === "none" ? null : enforcedServiceTier as ServiceTierType,
       enforcedModelTiers: tieredModelEnforcementToPayload(tieredEnforcement),
       expiresAt: expiresAt?.toISOString() ?? null,
@@ -162,33 +156,6 @@ function ApiKeyEditForm({ apiKey, busy, onSubmit, onClose }: ApiKeyEditFormProps
             <div className="space-y-1">
               <div className="text-sm font-medium">Assigned accounts</div>
               <AccountMultiSelect value={selectedAccountIds} onChange={setSelectedAccountIds} />
-            </div>
-
-            <div className="space-y-1">
-              <div className="text-sm font-medium">Enforced model</div>
-              <Input
-                value={enforcedModel}
-                onChange={(e) => setEnforcedModel(e.target.value)}
-                placeholder="e.g. gpt-5.3-codex"
-                autoComplete="off"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <div className="text-sm font-medium">Enforced reasoning</div>
-              <Select value={enforcedReasoningEffort} onValueChange={setEnforcedReasoningEffort}>
-                <SelectTrigger>
-                  <SelectValue placeholder="None" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  <SelectItem value="minimal">Minimal</SelectItem>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="xhigh">XHigh</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
 
             <div className="space-y-1">

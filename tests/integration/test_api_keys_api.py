@@ -464,17 +464,17 @@ async def test_api_key_model_restriction_and_models_filter(async_client):
 
 
 @pytest.mark.asyncio
-async def test_api_key_rejects_enforced_model_outside_allowed_models(async_client):
+async def test_api_key_ignores_legacy_scalar_model_enforcement(async_client):
     created = await async_client.post(
         "/api/api-keys/",
         json={
-            "name": "invalid-enforcement",
+            "name": "legacy-enforcement",
             "allowedModels": ["model-alpha"],
             "enforcedModel": "model-beta",
         },
     )
-    assert created.status_code == 400
-    assert created.json()["error"]["code"] == "invalid_api_key_payload"
+    assert created.status_code == 200
+    assert created.json()["enforcedModel"] is None
 
 
 @pytest.mark.asyncio
@@ -536,8 +536,9 @@ async def test_api_key_enforces_model_and_reasoning_for_responses(async_client, 
         json={
             "name": "enforced-policy",
             "allowedModels": [forced_model],
-            "enforcedModel": forced_model,
-            "enforcedReasoningEffort": "high",
+            "enforcedModelTiers": {
+                "standard": {"model": forced_model, "reasoningEffort": "high"},
+            },
         },
     )
     assert created.status_code == 200
@@ -608,7 +609,6 @@ async def test_api_key_enforces_service_tier_for_responses(async_client, monkeyp
         json={
             "name": "enforced-service-tier",
             "allowedModels": [forced_model],
-            "enforcedModel": forced_model,
             "enforcedServiceTier": "fast",
         },
     )
@@ -670,8 +670,9 @@ async def test_api_key_enforces_model_and_reasoning_for_compact_responses(async_
         json={
             "name": "enforced-compact-policy",
             "allowedModels": [forced_model],
-            "enforcedModel": forced_model,
-            "enforcedReasoningEffort": "high",
+            "enforcedModelTiers": {
+                "standard": {"model": forced_model, "reasoningEffort": "high"},
+            },
         },
     )
     assert created.status_code == 200
@@ -946,7 +947,7 @@ async def test_api_key_usage_summary_uses_persisted_request_log_cost(async_clien
 
 
 @pytest.mark.asyncio
-async def test_api_key_create_accepts_uppercase_enforced_reasoning(async_client):
+async def test_api_key_create_ignores_legacy_uppercase_enforced_reasoning(async_client):
     created = await async_client.post(
         "/api/api-keys/",
         json={
@@ -955,11 +956,11 @@ async def test_api_key_create_accepts_uppercase_enforced_reasoning(async_client)
         },
     )
     assert created.status_code == 200
-    assert created.json()["enforcedReasoningEffort"] == "high"
+    assert created.json()["enforcedReasoningEffort"] is None
 
 
 @pytest.mark.asyncio
-async def test_api_key_update_accepts_uppercase_enforced_reasoning(async_client):
+async def test_api_key_update_ignores_legacy_uppercase_enforced_reasoning(async_client):
     created = await async_client.post(
         "/api/api-keys/",
         json={
@@ -976,7 +977,7 @@ async def test_api_key_update_accepts_uppercase_enforced_reasoning(async_client)
         },
     )
     assert updated.status_code == 200
-    assert updated.json()["enforcedReasoningEffort"] == "high"
+    assert updated.json()["enforcedReasoningEffort"] is None
 
 
 @pytest.mark.asyncio

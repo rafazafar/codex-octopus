@@ -57,8 +57,6 @@ export function ApiKeyInfo({
 }: ApiKeyInfoProps) {
 	const expired = isExpired(apiKey);
 	const models = apiKey.allowedModels?.join(", ") || "All models";
-	const enforcedModel = apiKey.enforcedModel || null;
-	const enforcedEffort = apiKey.enforcedReasoningEffort || null;
 	const enforcedMini = formatTier(apiKey.enforcedModelTiers?.mini ?? null);
 	const enforcedStandard = formatTier(apiKey.enforcedModelTiers?.standard ?? null);
 	const usage = allowUsageSummaryFallback
@@ -80,18 +78,6 @@ export function ApiKeyInfo({
 					<dt className="text-muted-foreground">Models</dt>
 					<dd className="text-right font-medium">{models}</dd>
 				</div>
-				{enforcedModel ? (
-					<div className="flex items-center justify-between gap-2">
-						<dt className="text-muted-foreground">Enforced Model</dt>
-						<dd className="font-mono font-medium">{enforcedModel}</dd>
-					</div>
-				) : null}
-				{enforcedEffort ? (
-					<div className="flex items-center justify-between gap-2">
-						<dt className="text-muted-foreground">Enforced Effort</dt>
-						<dd className="font-medium">{enforcedEffort}</dd>
-					</div>
-				) : null}
 				{enforcedMini ? (
 					<div className="flex items-center justify-between gap-2">
 						<dt className="text-muted-foreground">Mini Tier</dt>

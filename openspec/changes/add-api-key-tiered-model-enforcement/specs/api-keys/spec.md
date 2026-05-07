@@ -20,3 +20,8 @@ The dashboard API key CRUD surface SHALL allow callers to persist an optional `e
 
 - **WHEN** a dashboard client updates an API key with `enforcedModelTiers: null`
 - **THEN** the persisted API key has no tiered enforcement policy
+
+#### Scenario: Empty tiered enforcement is no enforcement
+
+- **WHEN** a dashboard client creates or updates an API key with no mini tier and no standard tier
+- **THEN** the persisted API key has no model or reasoning enforcement policy

@@ -189,6 +189,37 @@ def test_apply_api_key_enforcement_uses_mini_and_standard_tiers():
     assert standard_payload.reasoning.effort == "high"
 
 
+def test_apply_api_key_enforcement_ignores_legacy_scalar_model_and_reasoning():
+    payload = ResponsesRequest.model_validate(
+        {
+            "model": "gpt-5.3-codex",
+            "instructions": "hello",
+            "input": [],
+            "reasoning": {"effort": "medium"},
+        }
+    )
+    api_key = ApiKeyData(
+        id="key_legacy",
+        name="legacy-key",
+        key_prefix="sk-clb-legacy",
+        allowed_models=None,
+        enforced_model="gpt-5.4",
+        enforced_reasoning_effort="xhigh",
+        enforced_service_tier=None,
+        enforced_model_tiers=None,
+        expires_at=None,
+        is_active=True,
+        created_at=utcnow(),
+        last_used_at=None,
+    )
+
+    proxy_request_policy.apply_api_key_enforcement(payload, api_key)
+
+    assert payload.model == "gpt-5.3-codex"
+    assert payload.reasoning is not None
+    assert payload.reasoning.effort == "medium"
+
+
 class _RingMembershipStub:
     def __init__(self, members: list[str]) -> None:
         self.members = members
@@ -4054,9 +4085,13 @@ async def test_prepare_websocket_response_create_request_normalizes_payload_and_
         name="refreshed",
         key_prefix="sk-fresh",
         allowed_models=["gpt-5.2"],
-        enforced_model="gpt-5.2",
-        enforced_reasoning_effort="high",
+        enforced_model=None,
+        enforced_reasoning_effort=None,
         enforced_service_tier=None,
+        enforced_model_tiers=ApiKeyEnforcedModelTiersData(
+            mini=None,
+            standard=ApiKeyEnforcedModelTierData(model="gpt-5.2", reasoning_effort="high"),
+        ),
         expires_at=None,
         is_active=True,
         created_at=utcnow(),

@@ -12,8 +12,10 @@ describe("ApiKeyInfo", () => {
 				apiKey={createApiKey({
 					keyPrefix: "sk-special",
 					allowedModels: ["gpt-5.1", "gpt-4o-mini"],
-					enforcedModel: "gpt-5.1",
-					enforcedReasoningEffort: "high",
+					enforcedModelTiers: {
+						mini: { model: "gpt-5.4-mini", reasoningEffort: "low" },
+						standard: { model: "gpt-5.4", reasoningEffort: "high" },
+					},
 				})}
 			/>,
 		);
@@ -21,8 +23,10 @@ describe("ApiKeyInfo", () => {
 		expect(screen.getByText("Key Details")).toBeInTheDocument();
 		expect(screen.getByText("sk-special")).toBeInTheDocument();
 		expect(screen.getByText("gpt-5.1, gpt-4o-mini")).toBeInTheDocument();
-		expect(screen.getByText("Enforced Model")).toBeInTheDocument();
-		expect(screen.getByText("Enforced Effort")).toBeInTheDocument();
+		expect(screen.getByText("Mini Tier")).toBeInTheDocument();
+		expect(screen.getByText("gpt-5.4-mini / low")).toBeInTheDocument();
+		expect(screen.getByText("Standard Tier")).toBeInTheDocument();
+		expect(screen.getByText("gpt-5.4 / high")).toBeInTheDocument();
 	});
 
 	it("falls back to all models and never expiry when the key is unrestricted", () => {
