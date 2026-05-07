@@ -67,10 +67,10 @@ function TierFields({
       />
       <Select value={reasoning} onValueChange={(next) => onReasoningChange(next as ReasoningEffortType)}>
         <SelectTrigger>
-          <SelectValue placeholder="None" />
+          <SelectValue placeholder="Unset" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="none">None</SelectItem>
+          <SelectItem value="none">Unset</SelectItem>
           <SelectItem value="minimal">Minimal</SelectItem>
           <SelectItem value="low">Low</SelectItem>
           <SelectItem value="medium">Medium</SelectItem>

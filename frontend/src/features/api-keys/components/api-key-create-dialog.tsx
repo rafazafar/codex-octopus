@@ -120,14 +120,12 @@ export function ApiKeyCreateDialog({ open, busy, onOpenChange, onSubmit }: ApiKe
                   <label className="text-sm font-medium">Enforced service tier</label>
                   <Select value={enforcedServiceTier} onValueChange={setEnforcedServiceTier}>
                     <SelectTrigger>
-                      <SelectValue placeholder="None" />
+                      <SelectValue placeholder="Unset" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      <SelectItem value="auto">Auto</SelectItem>
+                      <SelectItem value="none">Unset</SelectItem>
                       <SelectItem value="default">Normal</SelectItem>
-                      <SelectItem value="priority">Priority</SelectItem>
-                      <SelectItem value="flex">Flex</SelectItem>
+                      <SelectItem value="priority">Fast</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

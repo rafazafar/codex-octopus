@@ -17,7 +17,10 @@ The dashboard API key CRUD surface MUST allow callers to persist an optional enf
 - **THEN** the persisted API key stores `flex`
 - **AND** subsequent reads return `flex`
 
-#### Scenario: Dashboard names default tier as normal
+#### Scenario: Dashboard names service tier controls with Codex app terminology
 
 - **WHEN** the dashboard renders service tier enforcement options
-- **THEN** the option persisted as `default` is labeled `Normal`
+- **THEN** no service tier enforcement is labeled `Unset`
+- **AND** the option persisted as `default` is labeled `Normal`
+- **AND** the option persisted as `priority` is labeled `Fast`
+- **AND** new selections do not expose `auto` or `flex`

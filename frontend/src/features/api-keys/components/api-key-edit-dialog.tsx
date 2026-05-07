@@ -162,14 +162,18 @@ function ApiKeyEditForm({ apiKey, busy, onSubmit, onClose }: ApiKeyEditFormProps
               <div className="text-sm font-medium">Enforced service tier</div>
               <Select value={enforcedServiceTier} onValueChange={setEnforcedServiceTier}>
                 <SelectTrigger>
-                  <SelectValue placeholder="None" />
+                  <SelectValue placeholder="Unset" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  <SelectItem value="auto">Auto</SelectItem>
+                  <SelectItem value="none">Unset</SelectItem>
                   <SelectItem value="default">Normal</SelectItem>
-                  <SelectItem value="priority">Priority</SelectItem>
-                  <SelectItem value="flex">Flex</SelectItem>
+                  <SelectItem value="priority">Fast</SelectItem>
+                  {enforcedServiceTier === "auto" ? (
+                    <SelectItem value="auto">Auto (legacy)</SelectItem>
+                  ) : null}
+                  {enforcedServiceTier === "flex" ? (
+                    <SelectItem value="flex">Flex (legacy)</SelectItem>
+                  ) : null}
                 </SelectContent>
               </Select>
             </div>
