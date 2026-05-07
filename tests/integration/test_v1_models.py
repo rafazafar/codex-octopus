@@ -219,6 +219,47 @@ async def test_backend_codex_models_filters_disallowed_models(async_client):
 
 
 @pytest.mark.asyncio
+async def test_backend_codex_models_filters_to_tiered_enforced_models(async_client):
+    registry = get_model_registry()
+    models = [
+        _make_upstream_model("gpt-5.4-mini", base_instructions="mini"),
+        _make_upstream_model("gpt-5.4", base_instructions="standard"),
+        _make_upstream_model("gpt-5.3-codex", base_instructions="hidden"),
+    ]
+    await registry.update({"plus": models, "pro": models})
+
+    enable = await async_client.put(
+        "/api/settings",
+        json={
+            "stickyThreadsEnabled": False,
+            "preferEarlierResetAccounts": False,
+            "totpRequiredOnLogin": False,
+            "apiKeyAuthEnabled": True,
+        },
+    )
+    assert enable.status_code == 200
+
+    created = await async_client.post(
+        "/api/api-keys/",
+        json={
+            "name": "codex-tiered",
+            "allowedModels": ["gpt-5.4-mini", "gpt-5.4", "gpt-5.3-codex"],
+            "enforcedModelTiers": {
+                "mini": {"model": "gpt-5.4-mini"},
+                "standard": {"model": "gpt-5.4"},
+            },
+        },
+    )
+    assert created.status_code == 200
+    key = created.json()["key"]
+
+    resp = await async_client.get("/backend-api/codex/models", headers={"Authorization": f"Bearer {key}"})
+    assert resp.status_code == 200
+    entries = resp.json()["models"]
+    assert [entry["slug"] for entry in entries] == ["gpt-5.4-mini", "gpt-5.4"]
+
+
+@pytest.mark.asyncio
 async def test_backend_codex_models_includes_supported_in_api_false_models(async_client):
     registry = get_model_registry()
     models = [

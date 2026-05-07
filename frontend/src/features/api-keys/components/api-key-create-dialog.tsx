@@ -17,7 +17,14 @@ import { Input } from "@/components/ui/input";
 import { ExpiryPicker } from "@/features/api-keys/components/expiry-picker";
 import { LimitRulesEditor } from "@/features/api-keys/components/limit-rules-editor";
 import { ModelMultiSelect } from "@/features/api-keys/components/model-multi-select";
-import type { ApiKeyCreateRequest, LimitRuleCreate, ServiceTierType } from "@/features/api-keys/schemas";
+import {
+  TieredModelEnforcementFields,
+} from "@/features/api-keys/components/tiered-model-enforcement-fields";
+import {
+  EMPTY_TIERED_MODEL_ENFORCEMENT,
+  tieredModelEnforcementToPayload,
+} from "@/features/api-keys/components/tiered-model-enforcement-utils";
+import type { ApiKeyCreateRequest, LimitRuleCreate, ReasoningEffortType, ServiceTierType } from "@/features/api-keys/schemas";
 import {
   Select,
   SelectContent,
@@ -51,6 +58,7 @@ export function ApiKeyCreateDialog({ open, busy, onOpenChange, onSubmit }: ApiKe
   const [enforcedModel, setEnforcedModel] = useState("");
   const [enforcedReasoningEffort, setEnforcedReasoningEffort] = useState("none");
   const [enforcedServiceTier, setEnforcedServiceTier] = useState("none");
+  const [tieredEnforcement, setTieredEnforcement] = useState(EMPTY_TIERED_MODEL_ENFORCEMENT);
 
   const handleSubmit = async (values: FormValues) => {
     const validLimits = limitRules.filter((r) => r.maxValue > 0);
@@ -58,8 +66,9 @@ export function ApiKeyCreateDialog({ open, busy, onOpenChange, onSubmit }: ApiKe
       name: values.name,
       allowedModels: selectedModels.length > 0 ? selectedModels : undefined,
       enforcedModel: enforcedModel.trim() ? enforcedModel.trim() : null,
-      enforcedReasoningEffort: enforcedReasoningEffort === "none" ? null : enforcedReasoningEffort as "minimal" | "low" | "medium" | "high" | "xhigh",
+      enforcedReasoningEffort: enforcedReasoningEffort === "none" ? null : enforcedReasoningEffort as ReasoningEffortType,
       enforcedServiceTier: enforcedServiceTier === "none" ? null : enforcedServiceTier as ServiceTierType,
+      enforcedModelTiers: tieredModelEnforcementToPayload(tieredEnforcement),
       expiresAt: expiresAt?.toISOString(),
       limits: validLimits.length > 0 ? validLimits : undefined,
     };
@@ -75,6 +84,7 @@ export function ApiKeyCreateDialog({ open, busy, onOpenChange, onSubmit }: ApiKe
     setEnforcedModel("");
     setEnforcedReasoningEffort("none");
     setEnforcedServiceTier("none");
+    setTieredEnforcement(EMPTY_TIERED_MODEL_ENFORCEMENT);
     onOpenChange(false);
   };
 
@@ -154,6 +164,8 @@ export function ApiKeyCreateDialog({ open, busy, onOpenChange, onSubmit }: ApiKe
                     </SelectContent>
                   </Select>
                 </div>
+
+                <TieredModelEnforcementFields value={tieredEnforcement} onChange={setTieredEnforcement} />
 
                 <div className="space-y-1">
                   <label className="text-sm font-medium">Expiry</label>

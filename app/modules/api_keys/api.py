@@ -9,6 +9,8 @@ from app.dependencies import ApiKeysContext, get_api_keys_context
 from app.modules.api_keys.schemas import (
     ApiKeyCreateRequest,
     ApiKeyCreateResponse,
+    ApiKeyEnforcedModelTier,
+    ApiKeyEnforcedModelTiers,
     ApiKeyResponse,
     ApiKeyTrendsResponse,
     ApiKeyUpdateRequest,
@@ -19,6 +21,8 @@ from app.modules.api_keys.schemas import (
 from app.modules.api_keys.service import (
     ApiKeyCreateData,
     ApiKeyData,
+    ApiKeyEnforcedModelTierData,
+    ApiKeyEnforcedModelTiersData,
     ApiKeyNotFoundError,
     ApiKeyUpdateData,
     LimitRuleInput,
@@ -40,6 +44,7 @@ def _to_response(row: ApiKeyData) -> ApiKeyResponse:
         enforced_model=row.enforced_model,
         enforced_reasoning_effort=row.enforced_reasoning_effort,
         enforced_service_tier=row.enforced_service_tier,
+        enforced_model_tiers=_to_tiered_enforcement_response(row.enforced_model_tiers),
         expires_at=row.expires_at,
         is_active=row.is_active,
         account_assignment_scope_enabled=row.account_assignment_scope_enabled,
@@ -104,6 +109,51 @@ def _build_limit_inputs(payload: ApiKeyCreateRequest | ApiKeyUpdateRequest) -> l
     return limit_inputs
 
 
+def _to_tiered_enforcement_response(
+    tiers: ApiKeyEnforcedModelTiersData | None,
+) -> ApiKeyEnforcedModelTiers | None:
+    if tiers is None:
+        return None
+    return ApiKeyEnforcedModelTiers(
+        mini=(
+            ApiKeyEnforcedModelTier(model=tiers.mini.model, reasoning_effort=tiers.mini.reasoning_effort)
+            if tiers.mini is not None
+            else None
+        ),
+        standard=(
+            ApiKeyEnforcedModelTier(model=tiers.standard.model, reasoning_effort=tiers.standard.reasoning_effort)
+            if tiers.standard is not None
+            else None
+        ),
+    )
+
+
+def _to_tiered_enforcement_data(
+    payload: ApiKeyCreateRequest | ApiKeyUpdateRequest,
+) -> ApiKeyEnforcedModelTiersData | None:
+    tiers = payload.enforced_model_tiers
+    if tiers is None:
+        return None
+    return ApiKeyEnforcedModelTiersData(
+        mini=(
+            ApiKeyEnforcedModelTierData(
+                model=tiers.mini.model,
+                reasoning_effort=tiers.mini.reasoning_effort,
+            )
+            if tiers.mini is not None
+            else None
+        ),
+        standard=(
+            ApiKeyEnforcedModelTierData(
+                model=tiers.standard.model,
+                reasoning_effort=tiers.standard.reasoning_effort,
+            )
+            if tiers.standard is not None
+            else None
+        ),
+    )
+
+
 @router.post("/", response_model=ApiKeyCreateResponse)
 async def create_api_key(
     request: Request,
@@ -120,6 +170,7 @@ async def create_api_key(
                 enforced_model=payload.enforced_model,
                 enforced_reasoning_effort=payload.enforced_reasoning_effort,
                 enforced_service_tier=payload.enforced_service_tier,
+                enforced_model_tiers=_to_tiered_enforcement_data(payload),
                 expires_at=payload.expires_at,
                 limits=limit_inputs,
             )
@@ -169,6 +220,8 @@ async def update_api_key(
         enforced_reasoning_effort_set="enforced_reasoning_effort" in fields,
         enforced_service_tier=payload.enforced_service_tier,
         enforced_service_tier_set="enforced_service_tier" in fields,
+        enforced_model_tiers=_to_tiered_enforcement_data(payload),
+        enforced_model_tiers_set="enforced_model_tiers" in fields,
         expires_at=payload.expires_at,
         expires_at_set="expires_at" in fields,
         is_active=payload.is_active,

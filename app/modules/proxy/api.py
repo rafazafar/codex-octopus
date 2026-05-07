@@ -64,6 +64,8 @@ from app.modules.proxy.helpers import _rate_limit_details
 from app.modules.proxy.http_bridge_forwarding import parse_forwarded_request
 from app.modules.proxy.request_policy import (
     apply_api_key_enforcement,
+    get_effective_model_for_api_key,
+    get_tier_enforced_models,
     openai_invalid_payload_error,
     openai_validation_error,
     validate_model_access,
@@ -578,6 +580,9 @@ async def _build_models_response(api_key: ApiKeyData | None) -> Response:
 
 def _allowed_models_for_api_key(api_key: ApiKeyData | None) -> set[str] | None:
     allowed_models = set(api_key.allowed_models) if api_key and api_key.allowed_models else None
+    tier_models = get_tier_enforced_models(api_key)
+    if tier_models:
+        return tier_models if allowed_models is None else (allowed_models & tier_models)
     if api_key and api_key.enforced_model:
         forced = {api_key.enforced_model}
         return forced if allowed_models is None else (allowed_models & forced)
@@ -1233,9 +1238,7 @@ async def _release_reservation(reservation: ApiKeyUsageReservationData | None) -
 
 
 def _effective_model_for_api_key(api_key: ApiKeyData | None, requested_model: str) -> str:
-    if api_key is None or api_key.enforced_model is None:
-        return requested_model
-    return api_key.enforced_model
+    return get_effective_model_for_api_key(api_key, requested_model)
 
 
 def _compact_request_service_tier(payload: ResponsesCompactRequest) -> str | None:

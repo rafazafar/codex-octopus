@@ -17,6 +17,8 @@ from app.modules.api_keys.repository import (
 )
 from app.modules.api_keys.service import (
     ApiKeyCreateData,
+    ApiKeyEnforcedModelTierData,
+    ApiKeyEnforcedModelTiersData,
     ApiKeyInvalidError,
     ApiKeyRateLimitExceededError,
     ApiKeysRepositoryProtocol,
@@ -81,6 +83,7 @@ class _FakeApiKeysRepository(ApiKeysRepositoryProtocol):
         enforced_model: str | None | _Unset = _UNSET,
         enforced_reasoning_effort: str | None | _Unset = _UNSET,
         enforced_service_tier: str | None | _Unset = _UNSET,
+        enforced_model_tiers: dict[str, object] | None | _Unset = _UNSET,
         account_assignment_scope_enabled: bool | _Unset = _UNSET,
         expires_at: datetime | None | _Unset = _UNSET,
         is_active: bool | _Unset = _UNSET,
@@ -98,6 +101,7 @@ class _FakeApiKeysRepository(ApiKeysRepositoryProtocol):
             "enforced_model": enforced_model,
             "enforced_reasoning_effort": enforced_reasoning_effort,
             "enforced_service_tier": enforced_service_tier,
+            "enforced_model_tiers": enforced_model_tiers,
             "account_assignment_scope_enabled": account_assignment_scope_enabled,
             "expires_at": expires_at,
             "is_active": is_active,
@@ -446,6 +450,59 @@ async def test_create_key_rejects_enforced_model_outside_allowed_models() -> Non
                 name="invalid-policy",
                 allowed_models=["model-alpha"],
                 enforced_model="model-beta",
+                expires_at=None,
+            )
+        )
+
+
+@pytest.mark.asyncio
+async def test_create_key_persists_tiered_model_enforcement() -> None:
+    repo = _FakeApiKeysRepository()
+    service = ApiKeysService(repo)
+
+    created = await service.create_key(
+        ApiKeyCreateData(
+            name="tiered-policy",
+            allowed_models=["gpt-5.4-mini", "gpt-5.4"],
+            enforced_model_tiers=ApiKeyEnforcedModelTiersData(
+                mini=ApiKeyEnforcedModelTierData(model="gpt-5.4-mini", reasoning_effort="LOW"),
+                standard=ApiKeyEnforcedModelTierData(model="gpt-5.4", reasoning_effort="HIGH"),
+            ),
+            expires_at=None,
+        )
+    )
+
+    assert created.enforced_model_tiers is not None
+    assert created.enforced_model_tiers.mini == ApiKeyEnforcedModelTierData(
+        model="gpt-5.4-mini",
+        reasoning_effort="low",
+    )
+    assert created.enforced_model_tiers.standard == ApiKeyEnforcedModelTierData(
+        model="gpt-5.4",
+        reasoning_effort="high",
+    )
+
+    stored = await repo.get_by_id(created.id)
+    assert stored is not None
+    assert stored.enforced_model_tiers == {
+        "mini": {"model": "gpt-5.4-mini", "reasoningEffort": "low"},
+        "standard": {"model": "gpt-5.4", "reasoningEffort": "high"},
+    }
+
+
+@pytest.mark.asyncio
+async def test_create_key_rejects_tiered_model_outside_allowed_models() -> None:
+    repo = _FakeApiKeysRepository()
+    service = ApiKeysService(repo)
+
+    with pytest.raises(ValueError, match=r"enforced_model_tiers\.mini\.model"):
+        await service.create_key(
+            ApiKeyCreateData(
+                name="invalid-tiered-policy",
+                allowed_models=["gpt-5.4"],
+                enforced_model_tiers=ApiKeyEnforcedModelTiersData(
+                    mini=ApiKeyEnforcedModelTierData(model="gpt-5.4-mini"),
+                ),
                 expires_at=None,
             )
         )

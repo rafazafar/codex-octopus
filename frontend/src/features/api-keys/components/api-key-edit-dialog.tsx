@@ -26,7 +26,14 @@ import { ExpiryPicker } from "@/features/api-keys/components/expiry-picker";
 import { LimitRulesEditor } from "@/features/api-keys/components/limit-rules-editor";
 import { AccountMultiSelect } from "@/features/api-keys/components/account-multi-select";
 import { ModelMultiSelect } from "@/features/api-keys/components/model-multi-select";
-import type { ApiKey, ApiKeyUpdateRequest, LimitRuleCreate, LimitType, ServiceTierType } from "@/features/api-keys/schemas";
+import {
+  TieredModelEnforcementFields,
+} from "@/features/api-keys/components/tiered-model-enforcement-fields";
+import {
+  tieredModelEnforcementFromValue,
+  tieredModelEnforcementToPayload,
+} from "@/features/api-keys/components/tiered-model-enforcement-utils";
+import type { ApiKey, ApiKeyUpdateRequest, LimitRuleCreate, LimitType, ReasoningEffortType, ServiceTierType } from "@/features/api-keys/schemas";
 import { parseDate } from "@/utils/formatters";
 
 import { hasLimitRuleChanges, normalizeLimitRules } from "./limit-rules-utils";
@@ -92,6 +99,9 @@ function ApiKeyEditForm({ apiKey, busy, onSubmit, onClose }: ApiKeyEditFormProps
   const [enforcedServiceTier, setEnforcedServiceTier] = useState<string>(
     apiKey.enforcedServiceTier || "none",
   );
+  const [tieredEnforcement, setTieredEnforcement] = useState(() =>
+    tieredModelEnforcementFromValue(apiKey.enforcedModelTiers),
+  );
 
   const handleSubmit = async (values: FormValues) => {
     const normalizedLimits = normalizeLimitRules(limitRules);
@@ -102,8 +112,9 @@ function ApiKeyEditForm({ apiKey, busy, onSubmit, onClose }: ApiKeyEditFormProps
       name: values.name,
       allowedModels: selectedModels.length > 0 ? selectedModels : null,
       enforcedModel: enforcedModel.trim() ? enforcedModel.trim() : null,
-      enforcedReasoningEffort: enforcedReasoningEffort === "none" ? null : enforcedReasoningEffort as "minimal" | "low" | "medium" | "high" | "xhigh",
+      enforcedReasoningEffort: enforcedReasoningEffort === "none" ? null : enforcedReasoningEffort as ReasoningEffortType,
       enforcedServiceTier: enforcedServiceTier === "none" ? null : enforcedServiceTier as ServiceTierType,
+      enforcedModelTiers: tieredModelEnforcementToPayload(tieredEnforcement),
       expiresAt: expiresAt?.toISOString() ?? null,
       isActive: values.isActive,
     };
@@ -195,6 +206,8 @@ function ApiKeyEditForm({ apiKey, busy, onSubmit, onClose }: ApiKeyEditFormProps
                 </SelectContent>
               </Select>
             </div>
+
+            <TieredModelEnforcementFields value={tieredEnforcement} onChange={setTieredEnforcement} />
 
             <div className="space-y-1">
               <div className="text-sm font-medium">Expiry</div>

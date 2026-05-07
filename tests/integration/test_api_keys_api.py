@@ -146,6 +146,51 @@ async def test_api_keys_crud_and_regenerate(async_client):
 
 
 @pytest.mark.asyncio
+async def test_api_key_crud_persists_tiered_model_enforcement(async_client):
+    created = await async_client.post(
+        "/api/api-keys/",
+        json={
+            "name": "tiered-key",
+            "allowedModels": ["gpt-5.4-mini", "gpt-5.4"],
+            "enforcedModelTiers": {
+                "mini": {"model": "gpt-5.4-mini", "reasoningEffort": "low"},
+                "standard": {"model": "gpt-5.4", "reasoningEffort": "high"},
+            },
+        },
+    )
+    assert created.status_code == 200
+    payload = created.json()
+    key_id = payload["id"]
+    assert payload["enforcedModelTiers"] == {
+        "mini": {"model": "gpt-5.4-mini", "reasoningEffort": "low"},
+        "standard": {"model": "gpt-5.4", "reasoningEffort": "high"},
+    }
+
+    updated = await async_client.patch(
+        f"/api/api-keys/{key_id}",
+        json={"enforcedModelTiers": None},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["enforcedModelTiers"] is None
+
+
+@pytest.mark.asyncio
+async def test_api_key_crud_rejects_tiered_model_outside_allowed_models(async_client):
+    created = await async_client.post(
+        "/api/api-keys/",
+        json={
+            "name": "invalid-tiered-key",
+            "allowedModels": ["gpt-5.4"],
+            "enforcedModelTiers": {
+                "mini": {"model": "gpt-5.4-mini"},
+            },
+        },
+    )
+    assert created.status_code == 400
+    assert "enforced_model_tiers.mini.model" in str(created.json())
+
+
+@pytest.mark.asyncio
 async def test_api_key_update_persists_assigned_account_ids(async_client):
     first_account_id = await _import_account(async_client, "acc-assigned-a", "assigned-a@example.com")
     second_account_id = await _import_account(async_client, "acc-assigned-b", "assigned-b@example.com")

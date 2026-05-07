@@ -32,7 +32,7 @@ from app.db.models import Account, AccountStatus
 from app.modules.accounts import auth_manager as auth_manager_module
 from app.modules.accounts.repository import AccountsRepository
 from app.modules.api_keys.repository import ApiKeysRepository
-from app.modules.api_keys.service import ApiKeyData
+from app.modules.api_keys.service import ApiKeyData, ApiKeyEnforcedModelTierData, ApiKeyEnforcedModelTiersData
 from app.modules.proxy import api as proxy_api
 from app.modules.proxy import request_policy as proxy_request_policy
 from app.modules.proxy import service as proxy_service
@@ -141,6 +141,52 @@ def test_apply_api_key_enforcement_overrides_service_tier_aliases_to_priority():
     proxy_request_policy.apply_api_key_enforcement(payload, api_key)
 
     assert payload.service_tier == "priority"
+
+
+def test_apply_api_key_enforcement_uses_mini_and_standard_tiers():
+    mini_payload = ResponsesRequest.model_validate(
+        {
+            "model": "gpt-5.1-codex-mini",
+            "instructions": "hello",
+            "input": [],
+            "reasoning": {"effort": "medium"},
+        }
+    )
+    standard_payload = ResponsesRequest.model_validate(
+        {
+            "model": "gpt-5.3-codex",
+            "instructions": "hello",
+            "input": [],
+            "reasoning": {"effort": "medium"},
+        }
+    )
+    api_key = ApiKeyData(
+        id="key_tiered",
+        name="tiered-key",
+        key_prefix="sk-clb-tiered",
+        allowed_models=None,
+        enforced_model="gpt-5.4",
+        enforced_reasoning_effort="xhigh",
+        enforced_service_tier=None,
+        enforced_model_tiers=ApiKeyEnforcedModelTiersData(
+            mini=ApiKeyEnforcedModelTierData(model="gpt-5.4-mini", reasoning_effort="low"),
+            standard=ApiKeyEnforcedModelTierData(model="gpt-5.4", reasoning_effort="high"),
+        ),
+        expires_at=None,
+        is_active=True,
+        created_at=utcnow(),
+        last_used_at=None,
+    )
+
+    proxy_request_policy.apply_api_key_enforcement(mini_payload, api_key)
+    proxy_request_policy.apply_api_key_enforcement(standard_payload, api_key)
+
+    assert mini_payload.model == "gpt-5.4-mini"
+    assert mini_payload.reasoning is not None
+    assert mini_payload.reasoning.effort == "low"
+    assert standard_payload.model == "gpt-5.4"
+    assert standard_payload.reasoning is not None
+    assert standard_payload.reasoning.effort == "high"
 
 
 class _RingMembershipStub:

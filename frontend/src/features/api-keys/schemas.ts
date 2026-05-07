@@ -35,6 +35,18 @@ export const ApiKeyUsageSummarySchema = z.object({
 
 export const SERVICE_TIERS = ["auto", "default", "priority", "flex"] as const;
 export type ServiceTierType = (typeof SERVICE_TIERS)[number];
+export const REASONING_EFFORTS = ["none", "minimal", "low", "medium", "high", "xhigh"] as const;
+export type ReasoningEffortType = (typeof REASONING_EFFORTS)[number];
+
+export const ApiKeyEnforcedModelTierSchema = z.object({
+  model: z.string().min(1).nullable().default(null),
+  reasoningEffort: z.enum(REASONING_EFFORTS).nullable().default(null),
+});
+
+export const ApiKeyEnforcedModelTiersSchema = z.object({
+  mini: ApiKeyEnforcedModelTierSchema.nullable().default(null),
+  standard: ApiKeyEnforcedModelTierSchema.nullable().default(null),
+});
 
 export const ApiKeySchema = z.object({
   id: z.string(),
@@ -43,13 +55,14 @@ export const ApiKeySchema = z.object({
   allowedModels: z.array(z.string()).nullable(),
   enforcedModel: z.string().nullable().default(null),
   enforcedReasoningEffort: z
-    .enum(["none", "minimal", "low", "medium", "high", "xhigh"])
+    .enum(REASONING_EFFORTS)
     .nullable()
     .default(null),
   enforcedServiceTier: z
     .enum(SERVICE_TIERS)
     .nullable()
     .default(null),
+  enforcedModelTiers: ApiKeyEnforcedModelTiersSchema.nullable().default(null),
   expiresAt: z.string().datetime({ offset: true }).nullable(),
   isActive: z.boolean(),
   accountAssignmentScopeEnabled: z.boolean().default(false),
@@ -65,13 +78,14 @@ export const ApiKeyCreateRequestSchema = z.object({
   allowedModels: z.array(z.string()).optional(),
   enforcedModel: z.string().min(1).nullable().optional(),
   enforcedReasoningEffort: z
-    .enum(["none", "minimal", "low", "medium", "high", "xhigh"])
+    .enum(REASONING_EFFORTS)
     .nullable()
     .optional(),
   enforcedServiceTier: z
     .enum(SERVICE_TIERS)
     .nullable()
     .optional(),
+  enforcedModelTiers: ApiKeyEnforcedModelTiersSchema.nullable().optional(),
   weeklyTokenLimit: z.number().int().positive().nullable().optional(),
   expiresAt: z.string().datetime({ offset: true }).nullable().optional(),
   limits: z.array(LimitRuleCreateSchema).optional(),
@@ -86,13 +100,14 @@ export const ApiKeyUpdateRequestSchema = z.object({
   allowedModels: z.array(z.string()).nullable().optional(),
   enforcedModel: z.string().min(1).nullable().optional(),
   enforcedReasoningEffort: z
-    .enum(["none", "minimal", "low", "medium", "high", "xhigh"])
+    .enum(REASONING_EFFORTS)
     .nullable()
     .optional(),
   enforcedServiceTier: z
     .enum(SERVICE_TIERS)
     .nullable()
     .optional(),
+  enforcedModelTiers: ApiKeyEnforcedModelTiersSchema.nullable().optional(),
   weeklyTokenLimit: z.number().int().positive().nullable().optional(),
   expiresAt: z.string().datetime({ offset: true }).nullable().optional(),
   isActive: z.boolean().optional(),
@@ -105,6 +120,8 @@ export const ApiKeyListSchema = z.array(ApiKeySchema);
 
 export type LimitRule = z.infer<typeof LimitRuleSchema>;
 export type LimitRuleCreate = z.infer<typeof LimitRuleCreateSchema>;
+export type ApiKeyEnforcedModelTier = z.infer<typeof ApiKeyEnforcedModelTierSchema>;
+export type ApiKeyEnforcedModelTiers = z.infer<typeof ApiKeyEnforcedModelTiersSchema>;
 export type ApiKey = z.infer<typeof ApiKeySchema>;
 export type ApiKeyCreateRequest = z.infer<typeof ApiKeyCreateRequestSchema>;
 export type ApiKeyCreateResponse = z.infer<typeof ApiKeyCreateResponseSchema>;

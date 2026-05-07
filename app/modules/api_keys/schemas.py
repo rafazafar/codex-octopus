@@ -24,12 +24,23 @@ class LimitRuleResponse(DashboardModel):
     reset_at: datetime
 
 
+class ApiKeyEnforcedModelTier(DashboardModel):
+    model: str | None = Field(default=None, min_length=1)
+    reasoning_effort: str | None = Field(default=None, pattern=r"(?i)^(none|minimal|low|medium|high|xhigh)$")
+
+
+class ApiKeyEnforcedModelTiers(DashboardModel):
+    mini: ApiKeyEnforcedModelTier | None = None
+    standard: ApiKeyEnforcedModelTier | None = None
+
+
 class ApiKeyCreateRequest(DashboardModel):
     name: str = Field(min_length=1, max_length=128)
     allowed_models: list[str] | None = None
     enforced_model: str | None = Field(default=None, min_length=1)
     enforced_reasoning_effort: str | None = Field(default=None, pattern=r"(?i)^(none|minimal|low|medium|high|xhigh)$")
     enforced_service_tier: str | None = Field(default=None, pattern=r"(?i)^(auto|default|priority|flex|fast)$")
+    enforced_model_tiers: ApiKeyEnforcedModelTiers | None = None
     weekly_token_limit: int | None = Field(default=None, ge=1)
     expires_at: datetime | None = None
     limits: list[LimitRuleCreate] | None = None
@@ -41,6 +52,7 @@ class ApiKeyUpdateRequest(DashboardModel):
     enforced_model: str | None = Field(default=None, min_length=1)
     enforced_reasoning_effort: str | None = Field(default=None, pattern=r"(?i)^(none|minimal|low|medium|high|xhigh)$")
     enforced_service_tier: str | None = Field(default=None, pattern=r"(?i)^(auto|default|priority|flex|fast)$")
+    enforced_model_tiers: ApiKeyEnforcedModelTiers | None = None
     weekly_token_limit: int | None = Field(default=None, ge=1)
     expires_at: datetime | None = None
     is_active: bool | None = None
@@ -67,6 +79,7 @@ class ApiKeyResponse(DashboardModel):
     enforced_model: str | None
     enforced_reasoning_effort: str | None
     enforced_service_tier: str | None
+    enforced_model_tiers: ApiKeyEnforcedModelTiers | None
     expires_at: datetime | None
     is_active: bool
     account_assignment_scope_enabled: bool = False

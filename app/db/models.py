@@ -5,6 +5,7 @@ from datetime import datetime
 from enum import Enum
 
 from sqlalchemy import (
+    JSON,
     BigInteger,
     Boolean,
     DateTime,
@@ -281,6 +282,7 @@ class ApiKey(Base):
     enforced_model: Mapped[str | None] = mapped_column(String, nullable=True)
     enforced_reasoning_effort: Mapped[str | None] = mapped_column(String, nullable=True)
     enforced_service_tier: Mapped[str | None] = mapped_column(String, nullable=True)
+    enforced_model_tiers: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
     account_assignment_scope_enabled: Mapped[bool] = mapped_column(
         Boolean,
         default=False,

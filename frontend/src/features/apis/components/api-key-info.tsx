@@ -43,6 +43,12 @@ function formatUsageParts(usage: NonNullable<ApiKey["usageSummary"]>): string {
 	return `${total} tok | in ${input} (${billable} billable / ${cached} cached) | out ${output} | ${requests} req | ${cost}`;
 }
 
+function formatTier(tier: NonNullable<ApiKey["enforcedModelTiers"]>["mini"]): string | null {
+	if (!tier) return null;
+	const parts = [tier.model, tier.reasoningEffort].filter(Boolean);
+	return parts.length > 0 ? parts.join(" / ") : null;
+}
+
 export function ApiKeyInfo({
 	apiKey,
 	usageSummary,
@@ -53,6 +59,8 @@ export function ApiKeyInfo({
 	const models = apiKey.allowedModels?.join(", ") || "All models";
 	const enforcedModel = apiKey.enforcedModel || null;
 	const enforcedEffort = apiKey.enforcedReasoningEffort || null;
+	const enforcedMini = formatTier(apiKey.enforcedModelTiers?.mini ?? null);
+	const enforcedStandard = formatTier(apiKey.enforcedModelTiers?.standard ?? null);
 	const usage = allowUsageSummaryFallback
 		? (usageSummary ?? apiKey.usageSummary)
 		: (usageSummary ?? null);
@@ -82,6 +90,18 @@ export function ApiKeyInfo({
 					<div className="flex items-center justify-between gap-2">
 						<dt className="text-muted-foreground">Enforced Effort</dt>
 						<dd className="font-medium">{enforcedEffort}</dd>
+					</div>
+				) : null}
+				{enforcedMini ? (
+					<div className="flex items-center justify-between gap-2">
+						<dt className="text-muted-foreground">Mini Tier</dt>
+						<dd className="text-right font-mono font-medium">{enforcedMini}</dd>
+					</div>
+				) : null}
+				{enforcedStandard ? (
+					<div className="flex items-center justify-between gap-2">
+						<dt className="text-muted-foreground">Standard Tier</dt>
+						<dd className="text-right font-mono font-medium">{enforcedStandard}</dd>
 					</div>
 				) : null}
 				<div className="flex items-center justify-between gap-2">

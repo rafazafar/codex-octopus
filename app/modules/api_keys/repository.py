@@ -213,6 +213,7 @@ class ApiKeysRepository:
         enforced_model: str | None | _Unset = _UNSET,
         enforced_reasoning_effort: str | None | _Unset = _UNSET,
         enforced_service_tier: str | None | _Unset = _UNSET,
+        enforced_model_tiers: dict[str, object] | None | _Unset = _UNSET,
         account_assignment_scope_enabled: bool | _Unset = _UNSET,
         expires_at: datetime | None | _Unset = _UNSET,
         is_active: bool | _Unset = _UNSET,
@@ -238,6 +239,9 @@ class ApiKeysRepository:
         if enforced_service_tier is not _UNSET:
             assert enforced_service_tier is None or isinstance(enforced_service_tier, str)
             row.enforced_service_tier = enforced_service_tier
+        if enforced_model_tiers is not _UNSET:
+            assert enforced_model_tiers is None or isinstance(enforced_model_tiers, dict)
+            row.enforced_model_tiers = enforced_model_tiers
         if account_assignment_scope_enabled is not _UNSET:
             assert isinstance(account_assignment_scope_enabled, bool)
             row.account_assignment_scope_enabled = account_assignment_scope_enabled

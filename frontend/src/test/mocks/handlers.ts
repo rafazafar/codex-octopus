@@ -39,9 +39,33 @@ const OauthStartPayloadSchema = z
 	})
 	.passthrough();
 
+const ApiKeyEnforcedModelTiersPayloadSchema = z
+	.object({
+		mini: z
+			.object({
+				model: z.string().nullable().optional(),
+				reasoningEffort: z.string().nullable().optional(),
+			})
+			.nullable()
+			.optional(),
+		standard: z
+			.object({
+				model: z.string().nullable().optional(),
+				reasoningEffort: z.string().nullable().optional(),
+			})
+			.nullable()
+			.optional(),
+	})
+	.nullable();
+
 const ApiKeyCreatePayloadSchema = z
 	.object({
 		name: z.string().optional(),
+		allowedModels: z.array(z.string()).nullable().optional(),
+		enforcedModel: z.string().nullable().optional(),
+		enforcedReasoningEffort: z.string().nullable().optional(),
+		enforcedServiceTier: z.string().nullable().optional(),
+		enforcedModelTiers: ApiKeyEnforcedModelTiersPayloadSchema.optional(),
 	})
 	.passthrough();
 
@@ -55,6 +79,10 @@ const ApiKeyUpdatePayloadSchema = z
 	.object({
 		name: z.string().optional(),
 		allowedModels: z.array(z.string()).nullable().optional(),
+		enforcedModel: z.string().nullable().optional(),
+		enforcedReasoningEffort: z.string().nullable().optional(),
+		enforcedServiceTier: z.string().nullable().optional(),
+		enforcedModelTiers: ApiKeyEnforcedModelTiersPayloadSchema.optional(),
 		isActive: z.boolean().optional(),
 		assignedAccountIds: z.array(z.string()).optional(),
 		resetUsage: z.boolean().optional(),
@@ -1334,6 +1362,11 @@ export const handlers = [
 			...createApiKey({
 				id: `key_${sequence}`,
 				name: payload?.name ?? `API Key ${sequence}`,
+				allowedModels: payload?.allowedModels ?? null,
+				enforcedModel: payload?.enforcedModel ?? null,
+				enforcedReasoningEffort: payload?.enforcedReasoningEffort ?? null,
+				enforcedServiceTier: payload?.enforcedServiceTier ?? null,
+				enforcedModelTiers: payload?.enforcedModelTiers ?? null,
 			}),
 			key: `sk-test-generated-${sequence}`,
 		});
@@ -1360,6 +1393,18 @@ export const handlers = [
 			...(payload.name !== undefined ? { name: payload.name } : {}),
 			...(payload.allowedModels !== undefined
 				? { allowedModels: payload.allowedModels }
+				: {}),
+			...(payload.enforcedModel !== undefined
+				? { enforcedModel: payload.enforcedModel }
+				: {}),
+			...(payload.enforcedReasoningEffort !== undefined
+				? { enforcedReasoningEffort: payload.enforcedReasoningEffort }
+				: {}),
+			...(payload.enforcedServiceTier !== undefined
+				? { enforcedServiceTier: payload.enforcedServiceTier }
+				: {}),
+			...(payload.enforcedModelTiers !== undefined
+				? { enforcedModelTiers: payload.enforcedModelTiers }
 				: {}),
 			...(payload.isActive !== undefined ? { isActive: payload.isActive } : {}),
 			...(payload.assignedAccountIds !== undefined

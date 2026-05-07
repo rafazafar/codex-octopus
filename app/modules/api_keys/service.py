@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import secrets
 import uuid
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, timezone
 from hashlib import sha256
@@ -54,6 +55,7 @@ class ApiKeysRepositoryProtocol(Protocol):
         enforced_model: str | None | _Unset = ...,
         enforced_reasoning_effort: str | None | _Unset = ...,
         enforced_service_tier: str | None | _Unset = ...,
+        enforced_model_tiers: dict[str, object] | None | _Unset = ...,
         account_assignment_scope_enabled: bool | _Unset = ...,
         expires_at: datetime | None | _Unset = ...,
         is_active: bool | _Unset = ...,
@@ -204,12 +206,25 @@ class LimitRuleInput:
 
 
 @dataclass(frozen=True, slots=True)
+class ApiKeyEnforcedModelTierData:
+    model: str | None = None
+    reasoning_effort: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ApiKeyEnforcedModelTiersData:
+    mini: ApiKeyEnforcedModelTierData | None = None
+    standard: ApiKeyEnforcedModelTierData | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class ApiKeyCreateData:
     name: str
     allowed_models: list[str] | None
     enforced_model: str | None = None
     enforced_reasoning_effort: str | None = None
     enforced_service_tier: str | None = None
+    enforced_model_tiers: ApiKeyEnforcedModelTiersData | None = None
     expires_at: datetime | None = None
     limits: list[LimitRuleInput] = field(default_factory=list)
 
@@ -226,6 +241,8 @@ class ApiKeyUpdateData:
     enforced_reasoning_effort_set: bool = False
     enforced_service_tier: str | None = None
     enforced_service_tier_set: bool = False
+    enforced_model_tiers: ApiKeyEnforcedModelTiersData | None = None
+    enforced_model_tiers_set: bool = False
     expires_at: datetime | None = None
     expires_at_set: bool = False
     is_active: bool | None = None
@@ -254,6 +271,7 @@ class ApiKeyData:
     usage_summary: "ApiKeyUsageSummaryData | None" = None
     account_assignment_scope_enabled: bool = False
     assigned_account_ids: list[str] = field(default_factory=list)
+    enforced_model_tiers: ApiKeyEnforcedModelTiersData | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -291,7 +309,12 @@ class ApiKeysService:
         enforced_model = _normalize_model_slug(payload.enforced_model)
         enforced_reasoning_effort = _normalize_reasoning_effort(payload.enforced_reasoning_effort)
         enforced_service_tier = _normalize_service_tier(payload.enforced_service_tier)
+        enforced_model_tiers = _normalize_enforced_model_tiers(payload.enforced_model_tiers)
         _validate_model_enforcement(enforced_model=enforced_model, allowed_models=normalized_allowed_models)
+        _validate_tiered_model_enforcement(
+            enforced_model_tiers=enforced_model_tiers,
+            allowed_models=normalized_allowed_models,
+        )
         row = ApiKey(
             id=str(__import__("uuid").uuid4()),
             name=_normalize_name(payload.name),
@@ -301,6 +324,7 @@ class ApiKeysService:
             enforced_model=enforced_model,
             enforced_reasoning_effort=enforced_reasoning_effort,
             enforced_service_tier=enforced_service_tier,
+            enforced_model_tiers=_serialize_enforced_model_tiers(enforced_model_tiers),
             expires_at=expires_at,
             is_active=True,
             created_at=now,
@@ -366,15 +390,29 @@ class ApiKeysService:
         else:
             enforced_service_tier = None
 
-        if payload.allowed_models_set or payload.enforced_model_set:
+        if payload.enforced_model_tiers_set:
+            enforced_model_tiers = _normalize_enforced_model_tiers(payload.enforced_model_tiers)
+        else:
+            enforced_model_tiers = None
+
+        if payload.allowed_models_set or payload.enforced_model_set or payload.enforced_model_tiers_set:
             effective_allowed_models = (
                 allowed_models if payload.allowed_models_set else _deserialize_allowed_models(existing.allowed_models)
             )
             effective_enforced_model = (
                 enforced_model if payload.enforced_model_set else _normalize_model_slug(existing.enforced_model)
             )
+            effective_enforced_model_tiers = (
+                enforced_model_tiers
+                if payload.enforced_model_tiers_set
+                else _deserialize_enforced_model_tiers(existing.enforced_model_tiers)
+            )
             _validate_model_enforcement(
                 enforced_model=effective_enforced_model,
+                allowed_models=effective_allowed_models,
+            )
+            _validate_tiered_model_enforcement(
+                enforced_model_tiers=effective_enforced_model_tiers,
                 allowed_models=effective_allowed_models,
             )
 
@@ -405,6 +443,11 @@ class ApiKeysService:
                     enforced_reasoning_effort if payload.enforced_reasoning_effort_set else _UNSET
                 ),
                 enforced_service_tier=(enforced_service_tier if payload.enforced_service_tier_set else _UNSET),
+                enforced_model_tiers=(
+                    _serialize_enforced_model_tiers(enforced_model_tiers)
+                    if payload.enforced_model_tiers_set
+                    else _UNSET
+                ),
                 account_assignment_scope_enabled=account_assignment_scope_enabled,
                 expires_at=expires_at if payload.expires_at_set else _UNSET,
                 is_active=(payload.is_active if payload.is_active_set and payload.is_active is not None else _UNSET),
@@ -433,6 +476,7 @@ class ApiKeysService:
             or payload.enforced_model_set
             or payload.enforced_reasoning_effort_set
             or payload.enforced_service_tier_set
+            or payload.enforced_model_tiers_set
             or payload.expires_at_set
             or payload.is_active_set
         ):
@@ -1038,11 +1082,94 @@ def _normalize_service_tier_lenient(value: str | None) -> str | None:
     return None
 
 
+def _normalize_enforced_model_tier(
+    tier: ApiKeyEnforcedModelTierData | None,
+) -> ApiKeyEnforcedModelTierData | None:
+    if tier is None:
+        return None
+    model = _normalize_model_slug(tier.model)
+    reasoning_effort = _normalize_reasoning_effort(tier.reasoning_effort)
+    if model is None and reasoning_effort is None:
+        return None
+    return ApiKeyEnforcedModelTierData(model=model, reasoning_effort=reasoning_effort)
+
+
+def _normalize_enforced_model_tiers(
+    tiers: ApiKeyEnforcedModelTiersData | None,
+) -> ApiKeyEnforcedModelTiersData | None:
+    if tiers is None:
+        return None
+    mini = _normalize_enforced_model_tier(tiers.mini)
+    standard = _normalize_enforced_model_tier(tiers.standard)
+    if mini is None and standard is None:
+        return None
+    return ApiKeyEnforcedModelTiersData(mini=mini, standard=standard)
+
+
+def _serialize_enforced_model_tiers(tiers: ApiKeyEnforcedModelTiersData | None) -> dict[str, object] | None:
+    normalized = _normalize_enforced_model_tiers(tiers)
+    if normalized is None:
+        return None
+
+    payload: dict[str, object] = {}
+    for name, tier in (("mini", normalized.mini), ("standard", normalized.standard)):
+        if tier is None:
+            continue
+        tier_payload: dict[str, str] = {}
+        if tier.model is not None:
+            tier_payload["model"] = tier.model
+        if tier.reasoning_effort is not None:
+            tier_payload["reasoningEffort"] = tier.reasoning_effort
+        payload[name] = tier_payload
+    return payload or None
+
+
+def _deserialize_enforced_model_tier(value: object) -> ApiKeyEnforcedModelTierData | None:
+    if not isinstance(value, Mapping):
+        return None
+    model_value = value.get("model")
+    reasoning_value = value.get("reasoningEffort", value.get("reasoning_effort"))
+    model = _normalize_model_slug(model_value if isinstance(model_value, str) else None)
+    reasoning_effort = _normalize_reasoning_effort_lenient(
+        reasoning_value if isinstance(reasoning_value, str) else None
+    )
+    if model is None and reasoning_effort is None:
+        return None
+    return ApiKeyEnforcedModelTierData(model=model, reasoning_effort=reasoning_effort)
+
+
+def _deserialize_enforced_model_tiers(value: object) -> ApiKeyEnforcedModelTiersData | None:
+    if not isinstance(value, Mapping):
+        return None
+    mini = _deserialize_enforced_model_tier(value.get("mini"))
+    standard = _deserialize_enforced_model_tier(value.get("standard"))
+    if mini is None and standard is None:
+        return None
+    return ApiKeyEnforcedModelTiersData(mini=mini, standard=standard)
+
+
 def _validate_model_enforcement(*, enforced_model: str | None, allowed_models: list[str] | None) -> None:
     if enforced_model is None or not allowed_models:
         return
     if enforced_model not in allowed_models:
         raise ValueError("enforced_model must be present in allowed_models when allowed_models is configured")
+
+
+def _validate_tiered_model_enforcement(
+    *,
+    enforced_model_tiers: ApiKeyEnforcedModelTiersData | None,
+    allowed_models: list[str] | None,
+) -> None:
+    if enforced_model_tiers is None or not allowed_models:
+        return
+    for tier_name, tier in (("mini", enforced_model_tiers.mini), ("standard", enforced_model_tiers.standard)):
+        if tier is None or tier.model is None:
+            continue
+        if tier.model not in allowed_models:
+            raise ValueError(
+                f"enforced_model_tiers.{tier_name}.model must be present in allowed_models "
+                "when allowed_models is configured"
+            )
 
 
 def _to_limit_rule_data(limit: ApiKeyLimit) -> LimitRuleData:
@@ -1181,6 +1308,7 @@ def _to_created_data(data: ApiKeyData, key: str) -> ApiKeyCreatedData:
         enforced_model=data.enforced_model,
         enforced_reasoning_effort=data.enforced_reasoning_effort,
         enforced_service_tier=data.enforced_service_tier,
+        enforced_model_tiers=data.enforced_model_tiers,
         expires_at=data.expires_at,
         is_active=data.is_active,
         created_at=data.created_at,
@@ -1204,6 +1332,7 @@ def _to_api_key_data(row: ApiKey, *, usage_summary: ApiKeyUsageSummaryData | Non
         enforced_model=_normalize_model_slug(row.enforced_model),
         enforced_reasoning_effort=_normalize_reasoning_effort_lenient(row.enforced_reasoning_effort),
         enforced_service_tier=_normalize_service_tier_lenient(row.enforced_service_tier),
+        enforced_model_tiers=_deserialize_enforced_model_tiers(row.enforced_model_tiers),
         expires_at=row.expires_at,
         is_active=row.is_active,
         created_at=row.created_at,
