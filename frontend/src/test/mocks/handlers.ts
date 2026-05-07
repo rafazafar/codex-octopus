@@ -1,7 +1,13 @@
 import { HttpResponse, http } from "msw";
 import { z } from "zod";
 
-import { LIMIT_TYPES, LIMIT_WINDOWS } from "@/features/api-keys/schemas";
+import {
+	ApiKeyEnforcedModelTiersSchema,
+	LIMIT_TYPES,
+	LIMIT_WINDOWS,
+	REASONING_EFFORTS,
+	SERVICE_TIERS,
+} from "@/features/api-keys/schemas";
 import {
 	type AccountSummary,
 	type ApiKey,
@@ -39,32 +45,15 @@ const OauthStartPayloadSchema = z
 	})
 	.passthrough();
 
-const ApiKeyEnforcedModelTiersPayloadSchema = z
-	.object({
-		mini: z
-			.object({
-				model: z.string().nullable().optional(),
-				reasoningEffort: z.string().nullable().optional(),
-			})
-			.nullable()
-			.optional(),
-		standard: z
-			.object({
-				model: z.string().nullable().optional(),
-				reasoningEffort: z.string().nullable().optional(),
-			})
-			.nullable()
-			.optional(),
-	})
-	.nullable();
+const ApiKeyEnforcedModelTiersPayloadSchema = ApiKeyEnforcedModelTiersSchema.nullable();
 
 const ApiKeyCreatePayloadSchema = z
 	.object({
 		name: z.string().optional(),
 		allowedModels: z.array(z.string()).nullable().optional(),
 		enforcedModel: z.string().nullable().optional(),
-		enforcedReasoningEffort: z.string().nullable().optional(),
-		enforcedServiceTier: z.string().nullable().optional(),
+		enforcedReasoningEffort: z.enum(REASONING_EFFORTS).nullable().optional(),
+		enforcedServiceTier: z.enum(SERVICE_TIERS).nullable().optional(),
 		enforcedModelTiers: ApiKeyEnforcedModelTiersPayloadSchema.optional(),
 	})
 	.passthrough();
@@ -80,8 +69,8 @@ const ApiKeyUpdatePayloadSchema = z
 		name: z.string().optional(),
 		allowedModels: z.array(z.string()).nullable().optional(),
 		enforcedModel: z.string().nullable().optional(),
-		enforcedReasoningEffort: z.string().nullable().optional(),
-		enforcedServiceTier: z.string().nullable().optional(),
+		enforcedReasoningEffort: z.enum(REASONING_EFFORTS).nullable().optional(),
+		enforcedServiceTier: z.enum(SERVICE_TIERS).nullable().optional(),
 		enforcedModelTiers: ApiKeyEnforcedModelTiersPayloadSchema.optional(),
 		isActive: z.boolean().optional(),
 		assignedAccountIds: z.array(z.string()).optional(),
