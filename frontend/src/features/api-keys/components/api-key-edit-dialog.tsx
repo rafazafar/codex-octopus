@@ -168,11 +168,9 @@ function ApiKeyEditForm({ apiKey, busy, onSubmit, onClose }: ApiKeyEditFormProps
                   <SelectItem value="none">Unset</SelectItem>
                   <SelectItem value="default">Normal</SelectItem>
                   <SelectItem value="priority">Fast</SelectItem>
+                  <SelectItem value="flex">Flex</SelectItem>
                   {enforcedServiceTier === "auto" ? (
                     <SelectItem value="auto">Auto (legacy)</SelectItem>
-                  ) : null}
-                  {enforcedServiceTier === "flex" ? (
-                    <SelectItem value="flex">Flex (legacy)</SelectItem>
                   ) : null}
                 </SelectContent>
               </Select>

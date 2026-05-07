@@ -126,6 +126,7 @@ export function ApiKeyCreateDialog({ open, busy, onOpenChange, onSubmit }: ApiKe
                       <SelectItem value="none">Unset</SelectItem>
                       <SelectItem value="default">Normal</SelectItem>
                       <SelectItem value="priority">Fast</SelectItem>
+                      <SelectItem value="flex">Flex</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -23,4 +23,5 @@ The dashboard API key CRUD surface MUST allow callers to persist an optional enf
 - **THEN** no service tier enforcement is labeled `Unset`
 - **AND** the option persisted as `default` is labeled `Normal`
 - **AND** the option persisted as `priority` is labeled `Fast`
-- **AND** new selections do not expose `auto` or `flex`
+- **AND** the option persisted as `flex` is labeled `Flex`
+- **AND** new selections do not expose `auto`
