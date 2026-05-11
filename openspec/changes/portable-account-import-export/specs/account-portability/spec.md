@@ -10,6 +10,12 @@ The dashboard accounts import endpoint MUST accept both the existing single-acco
 - **THEN** the system imports one account using the existing account identity and token rules
 - **AND** the response reports `format = "auth_json"` and `importedCount = 1`
 
+#### Scenario: Flat Codex token payload imports successfully
+
+- **WHEN** the dashboard uploads a valid single-account JSON object with root-level `id_token`, `access_token`, `refresh_token`, and optional `account_id` fields
+- **THEN** the system imports one account using the same account identity and token rules as `auth.json`
+- **AND** the response reports `format = "auth_json"` and `importedCount = 1`
+
 #### Scenario: External array payload imports successfully
 
 - **WHEN** the dashboard uploads a valid portable array payload containing multiple account records
@@ -83,3 +89,13 @@ The dashboard import response MUST summarize the detected format and imported ac
 - **WHEN** multiple accounts are imported successfully
 - **THEN** the response includes the imported count, detected format, and a list of imported account summaries
 - **AND** the UI can display the imported count without deriving it from side effects
+
+### Requirement: Accounts UI supports pasted account JSON
+
+The Accounts page MUST let operators add an account by pasting supported JSON directly, in addition to uploading JSON files and starting OAuth.
+
+#### Scenario: Pasted JSON import uses the account import endpoint
+
+- **WHEN** an operator clicks Add Account and pastes a valid supported account JSON payload
+- **THEN** the UI submits the pasted JSON through `POST /api/accounts/import`
+- **AND** the account list refreshes after a successful import

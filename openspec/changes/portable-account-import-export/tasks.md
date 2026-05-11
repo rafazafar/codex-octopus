@@ -19,3 +19,5 @@
 - [x] 4.1 Add backend tests for current-format import, portable-array import, rollback-on-invalid batch, setting-driven conflict handling, and portable export round-trips.
 - [x] 4.2 Add frontend tests/mocks for import dialog copy, export action wiring, and new API endpoints.
 - [x] 4.3 Run OpenSpec validation plus focused backend/frontend test suites covering the new portability flow.
+- [x] 4.4 Add backend coverage for flat Codex token JSON imports.
+- [x] 4.5 Add frontend coverage for pasted JSON imports from the Add Account dialog.

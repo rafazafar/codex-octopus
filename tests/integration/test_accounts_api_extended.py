@@ -42,6 +42,22 @@ def _make_auth_json(account_id: str | None, email: str, plan_type: str = "plus")
     return {"tokens": tokens}
 
 
+def _make_flat_auth_json(account_id: str | None, email: str, plan_type: str = "plus") -> dict:
+    auth_json = _make_auth_json(account_id, email, plan_type)
+    tokens = auth_json["tokens"]
+    return {
+        "id_token": tokens["idToken"],
+        "access_token": tokens["accessToken"],
+        "refresh_token": "",
+        "account_id": account_id,
+        "disabled": False,
+        "last_refresh": "2026-05-11T04:56:20.000Z",
+        "email": email,
+        "type": "codex",
+        "expired": "2026-05-20T11:30:14.000Z",
+    }
+
+
 def _make_portable_account_record(account_id: str | None, email: str, plan_type: str = "plus") -> dict:
     auth_json = _make_auth_json(account_id, email, plan_type)
     tokens = auth_json["tokens"]
@@ -124,6 +140,29 @@ async def test_import_falls_back_to_email_based_account_id(async_client):
     assert payload["importedCount"] == 1
     assert payload["accountId"] == fallback_account_id(email)
     assert payload["email"] == email
+
+
+@pytest.mark.asyncio
+async def test_import_flat_codex_token_json(async_client):
+    raw_account_id = "acc_flat_codex"
+    email = "flat-codex@example.com"
+    files = {
+        "auth_json": (
+            "codex-account.json",
+            json.dumps(_make_flat_auth_json(raw_account_id, email, "free")),
+            "application/json",
+        )
+    }
+
+    response = await async_client.post("/api/accounts/import", files=files)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["format"] == "auth_json"
+    assert payload["importedCount"] == 1
+    assert payload["accountId"] == generate_unique_account_id(raw_account_id, email)
+    assert payload["email"] == email
+    assert payload["planType"] == "free"
 
 
 @pytest.mark.asyncio
@@ -225,7 +264,9 @@ async def test_portable_import_reuses_overwrite_setting(async_client):
 
     accounts_response = await async_client.get("/api/accounts")
     assert accounts_response.status_code == 200
-    accounts = [entry for entry in accounts_response.json()["accounts"] if entry["email"] == "portable-merge@example.com"]
+    accounts = [
+        entry for entry in accounts_response.json()["accounts"] if entry["email"] == "portable-merge@example.com"
+    ]
     assert len(accounts) == 1
     assert accounts[0]["accountId"] == expected_account_id
     assert accounts[0]["planType"] == "team"

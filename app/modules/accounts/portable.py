@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timezone
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, TypeAdapter
 
 from app.core.auth import DEFAULT_EMAIL, DEFAULT_PLAN, AuthFile, AuthTokens, claims_from_auth, extract_id_token_claims
 from app.core.plan_types import coerce_account_plan_type
@@ -57,6 +57,21 @@ class PortableExternalAccountImport(BaseModel):
     last_used: int | None = None
 
 
+class PortableFlatAuthImport(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    id_token: str
+    access_token: str
+    refresh_token: str
+    account_id: str | None = Field(default=None, validation_alias=AliasChoices("account_id", "accountId"))
+    email: str | None = None
+    plan_type: str | None = None
+    last_refresh_at: datetime | None = Field(
+        default=None,
+        validation_alias=AliasChoices("last_refresh_at", "lastRefreshAt", "last_refresh"),
+    )
+
+
 class PortableExternalAccountExport(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -83,10 +98,14 @@ _PORTABLE_EXTERNAL_IMPORTS = TypeAdapter(list[PortableExternalAccountImport])
 def parse_portable_account_batch(raw: bytes) -> PortableAccountBatch:
     data = json.loads(raw)
     if isinstance(data, dict):
-        auth = AuthFile.model_validate(data)
+        if "tokens" in data:
+            return PortableAccountBatch(
+                format=PortableImportFormat.AUTH_JSON,
+                accounts=[portable_record_from_auth_file(AuthFile.model_validate(data))],
+            )
         return PortableAccountBatch(
             format=PortableImportFormat.AUTH_JSON,
-            accounts=[portable_record_from_auth_file(auth)],
+            accounts=[portable_record_from_flat_auth(PortableFlatAuthImport.model_validate(data))],
         )
     if isinstance(data, list):
         portable_accounts = _PORTABLE_EXTERNAL_IMPORTS.validate_python(data)
@@ -107,6 +126,28 @@ def portable_record_from_auth_file(auth: AuthFile) -> PortableAccountRecord:
         access_token=auth.tokens.access_token,
         refresh_token=auth.tokens.refresh_token,
         last_refresh_at=_to_utc_naive(auth.last_refresh_at),
+    )
+
+
+def portable_record_from_flat_auth(account: PortableFlatAuthImport) -> PortableAccountRecord:
+    auth = AuthFile(
+        tokens=AuthTokens(
+            id_token=account.id_token,
+            access_token=account.access_token,
+            refresh_token=account.refresh_token,
+            account_id=account.account_id,
+        ),
+        last_refresh_at=account.last_refresh_at,
+    )
+    claims = claims_from_auth(auth)
+    return PortableAccountRecord(
+        email=claims.email or account.email or DEFAULT_EMAIL,
+        plan_type=coerce_account_plan_type(claims.plan_type or account.plan_type, DEFAULT_PLAN),
+        raw_account_id=claims.account_id or account.account_id,
+        id_token=account.id_token,
+        access_token=account.access_token,
+        refresh_token=account.refresh_token,
+        last_refresh_at=_to_utc_naive(account.last_refresh_at),
     )
 
 

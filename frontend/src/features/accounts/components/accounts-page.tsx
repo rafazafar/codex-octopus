@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useMemo } from "react";
+import { Suspense, lazy, useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -34,6 +34,7 @@ export function AccountsPage() {
   const systemHealthQuery = useSystemHealth();
 
   const importDialog = useDialogState();
+  const [importDialogMode, setImportDialogMode] = useState<"oauth" | "paste" | "file">("oauth");
   const oauthDialog = useDialogState();
   const deleteDialog = useDialogState<string>();
 
@@ -103,9 +104,15 @@ export function AccountsPage() {
               accounts={accounts}
               selectedAccountId={resolvedSelectedAccountId}
               onSelect={handleSelectAccount}
-              onOpenImport={() => importDialog.show()}
+              onOpenImport={() => {
+                setImportDialogMode("file");
+                importDialog.show();
+              }}
               onExport={() => void exportMutation.mutateAsync()}
-              onOpenOauth={() => oauthDialog.show()}
+              onOpenOauth={() => {
+                setImportDialogMode("oauth");
+                importDialog.show();
+              }}
               exportBusy={exportMutation.isPending}
             />
           </div>
@@ -123,10 +130,13 @@ export function AccountsPage() {
       )}
 
       <ImportDialog
+        key={importDialogMode}
         open={importDialog.open}
         busy={importMutation.isPending}
         error={getErrorMessageOrNull(importMutation.error)}
         onOpenChange={importDialog.onOpenChange}
+        initialMode={importDialogMode}
+        onOpenOauth={() => oauthDialog.show()}
         onImport={async (file) => {
           await importMutation.mutateAsync(file);
         }}
