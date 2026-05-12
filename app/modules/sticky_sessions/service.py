@@ -147,14 +147,12 @@ class StickySessionsService:
         effective_kind = StickySessionKind.PROMPT_CACHE if stale_only else kind
         normalized_account_query = account_query.strip() if account_query else None
         normalized_key_query = key_query.strip() if key_query else None
-        targets = await self._repository.list_entry_identifiers(
+        return await self._repository.delete_matching_entries(
             kind=effective_kind,
             updated_before=stale_cutoff if stale_only else None,
             account_query=normalized_account_query,
             key_query=normalized_key_query,
         )
-        deleted = await self._repository.delete_entries(targets)
-        return len(deleted)
 
     async def purge_entries(self) -> int:
         settings = await self._settings_repository.get_or_create()

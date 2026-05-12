@@ -85,6 +85,35 @@ async def _insert_sticky_session(
         await session.commit()
 
 
+async def _insert_many_sticky_sessions(
+    *,
+    prefix: str,
+    account_id: str,
+    kind: StickySessionKind,
+    count: int,
+) -> None:
+    timestamp = utcnow()
+    async with SessionLocal() as session:
+        await session.execute(
+            text(
+                """
+                INSERT INTO sticky_sessions (key, account_id, kind, created_at, updated_at)
+                VALUES (:key, :account_id, :kind, :timestamp, :timestamp)
+                """
+            ),
+            [
+                {
+                    "key": f"{prefix}-{index:04d}",
+                    "account_id": account_id,
+                    "kind": kind.value,
+                    "timestamp": timestamp,
+                }
+                for index in range(count)
+            ],
+        )
+        await session.commit()
+
+
 @pytest.mark.asyncio
 async def test_sticky_sessions_api_lists_metadata_and_purges_stale(async_client):
     accounts = await _create_accounts()
@@ -268,6 +297,26 @@ async def test_sticky_sessions_api_deletes_filtered_rows(async_client):
     assert {(entry["key"], entry["displayName"]) for entry in response.json()["entries"]} == {
         ("cleanup-beta", "sticky-b@example.com")
     }
+
+
+@pytest.mark.asyncio
+async def test_sticky_sessions_api_deletes_large_filtered_row_sets(async_client):
+    accounts = await _create_accounts()
+    await _set_affinity_ttl(60)
+    await _insert_many_sticky_sessions(
+        prefix="cleanup-many",
+        account_id=accounts[0].id,
+        kind=StickySessionKind.STICKY_THREAD,
+        count=1100,
+    )
+
+    response = await async_client.post("/api/sticky-sessions/delete-filtered", json={})
+    assert response.status_code == 200
+    assert response.json() == {"deletedCount": 1100}
+
+    response = await async_client.get("/api/sticky-sessions")
+    assert response.status_code == 200
+    assert response.json()["total"] == 0
 
 
 @pytest.mark.asyncio

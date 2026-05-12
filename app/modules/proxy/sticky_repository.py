@@ -89,6 +89,29 @@ class StickySessionsRepository:
         await self._session.commit()
         return [(key, kind) for key, kind in result.all()]
 
+    async def delete_matching_entries(
+        self,
+        *,
+        kind: StickySessionKind | None = None,
+        updated_before: datetime | None = None,
+        account_query: str | None = None,
+        key_query: str | None = None,
+    ) -> int:
+        statement = delete(StickySession)
+        if kind is not None:
+            statement = statement.where(StickySession.kind == kind)
+        if updated_before is not None:
+            statement = statement.where(StickySession.updated_at < to_utc_naive(updated_before))
+        if account_query:
+            matching_accounts = select(Account.id).where(func.lower(Account.email).contains(account_query.lower()))
+            statement = statement.where(StickySession.account_id.in_(matching_accounts))
+        if key_query:
+            statement = statement.where(func.lower(StickySession.key).contains(key_query.lower()))
+        result = await self._session.execute(statement.returning(StickySession.key))
+        deleted_count = len(result.scalars().all())
+        await self._session.commit()
+        return deleted_count
+
     async def list_entry_identifiers(
         self,
         *,
