@@ -9,6 +9,7 @@ import {
   listAccounts,
   pauseAccount,
   reactivateAccount,
+  updateAccountRoutingTier,
 } from "@/features/accounts/api";
 
 function invalidateAccountRelatedQueries(queryClient: ReturnType<typeof useQueryClient>) {
@@ -87,7 +88,18 @@ export function useAccountMutations() {
     },
   });
 
-  return { importMutation, exportMutation, pauseMutation, resumeMutation, deleteMutation };
+  const routingTierMutation = useMutation({
+    mutationFn: updateAccountRoutingTier,
+    onSuccess: () => {
+      toast.success("Routing tier updated");
+      invalidateAccountRelatedQueries(queryClient);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Routing tier update failed");
+    },
+  });
+
+  return { importMutation, exportMutation, pauseMutation, resumeMutation, deleteMutation, routingTierMutation };
 }
 
 export function useAccountTrends(accountId: string | null) {

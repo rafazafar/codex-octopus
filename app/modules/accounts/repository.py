@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-import hashlib
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -166,6 +166,13 @@ class AccountsRepository:
             values["blocked_at"] = blocked_at
         result = await self._session.execute(
             update(Account).where(Account.id == account_id).values(**values).returning(Account.id)
+        )
+        await self._session.commit()
+        return result.scalar_one_or_none() is not None
+
+    async def update_routing_tier(self, account_id: str, routing_tier: str | None) -> bool:
+        result = await self._session.execute(
+            update(Account).where(Account.id == account_id).values(routing_tier=routing_tier).returning(Account.id)
         )
         await self._session.commit()
         return result.scalar_one_or_none() is not None

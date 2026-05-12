@@ -717,6 +717,27 @@ export const handlers = [
 		return HttpResponse.json({ status: "reactivated" });
 	}),
 
+	http.put("/api/accounts/:accountId/routing-tier", async ({ params, request }) => {
+		const accountId = String(params.accountId);
+		const account = findAccount(accountId);
+		if (!account) {
+			return HttpResponse.json(
+				{ error: { code: "account_not_found", message: "Account not found" } },
+				{ status: 404 },
+			);
+		}
+		const payload = await request.json() as { routingTier?: unknown };
+		const routingTier = payload.routingTier;
+		if (routingTier !== null && routingTier !== "gold" && routingTier !== "silver" && routingTier !== "bronze") {
+			return HttpResponse.json(
+				{ error: { code: "validation_error", message: "Invalid routing tier" } },
+				{ status: 422 },
+			);
+		}
+		account.routingTier = routingTier;
+		return HttpResponse.json({ status: "updated", routingTier });
+	}),
+
 	http.get("/api/accounts/:accountId/trends", ({ params }) => {
 		const accountId = String(params.accountId);
 		const account = findAccount(accountId);

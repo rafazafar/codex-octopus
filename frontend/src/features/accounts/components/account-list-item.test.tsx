@@ -31,4 +31,12 @@ describe("AccountListItem", () => {
 
     expect(screen.getByTestId("mini-quota-fill")).toHaveStyle({ width: "73%" });
   });
+
+  it("renders effective routing tier in the subtitle", () => {
+    const account = createAccountSummary({ routingTier: "gold" });
+
+    render(<AccountListItem account={account} selected={false} onSelect={vi.fn()} />);
+
+    expect(screen.getByText(/Gold/)).toBeInTheDocument();
+  });
 });

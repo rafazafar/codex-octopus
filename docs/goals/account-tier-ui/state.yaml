@@ -1,0 +1,351 @@
+version: 2
+
+goal:
+  title: "Account Tier UI"
+  slug: "account-tier-ui"
+  kind: specific
+  tranche: "Add verified dashboard/API workflow for configuring account routing tiers."
+  status: done
+  intake:
+    original_request: "Add the UI for configuring account tiers."
+    interpreted_outcome: "Operators can set gold, silver, bronze, or default account routing tiers from the dashboard and have the choice persist into weighted routing."
+    input_shape: specific
+    audience: "dashboard operators"
+    authority: requested
+    proof_type: test
+    completion_proof: "Dashboard workflow persists per-account routing tiers, backend reads return the tier, default/unlabeled remains bronze, and tests/browser verification prove the flow."
+    likely_misfire: "A visual label appears but operators cannot edit or persist account routing tiers."
+    blind_spots_considered:
+      - "Focus first tranche on Accounts page/API tier labels."
+      - "Settings UI for tier weights is optional follow-up unless evidence shows it is needed."
+      - "Existing weighted-routing OpenSpec and implementation should be extended rather than duplicated."
+    existing_plan_facts:
+      - "Weighted routing backend already added account routing_tier, config-driven weights, and bronze fallback."
+      - "User asked for the missing menu/UI."
+      - "Local live GoalBuddy board selected."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+
+agents:
+  scout: bundled_not_installed
+  worker: bundled_not_installed
+  judge: bundled_not_installed
+
+visual_board:
+  selected: local
+  local:
+    status: running
+    url: "http://127.0.0.1:41737/"
+    command: "npx goalbuddy board /Users/zafar/dev/codex-octopus/docs/goals/account-tier-ui"
+  github_projects:
+    status: not_requested
+    url: null
+    command: "npx goalbuddy extend github-projects"
+    missing: []
+
+active_task: null
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: default
+    objective: "Map existing account API/frontend patterns, weighted-routing artifacts, and verification commands needed for account tier UI."
+    inputs:
+      - "Existing account dashboard/API/frontend code discovered by search."
+      - "Existing weighted-account-routing OpenSpec artifacts and changed files."
+      - "Existing frontend/backend tests discovered by search."
+    constraints:
+      - "Read-only."
+      - "Do not implement."
+      - "Prefer concrete file-path evidence."
+      - "Record relevant frontend design/test conventions for later Worker tasks."
+    expected_output:
+      - "Relevant account API/service/repository/schema/frontend files."
+      - "OpenSpec change strategy: extend weighted-account-routing or create follow-up change."
+      - "Minimal UI/API slice recommendation."
+      - "Verification commands."
+      - "Allowed file candidates and risks."
+    receipt:
+      result: done
+      status: done
+      summary: "Mapped account tier UI/API surface. Existing `openspec/changes/weighted-account-routing` owns tier behavior and should be extended. Backend has `Account.routing_tier` and list/import/pause/delete APIs under `app/modules/accounts/*`; summaries are built in `app/modules/accounts/mappers.py`. Frontend Accounts page lives under `frontend/src/features/accounts/*`; list/detail/actions already use React Query mutations and MSW handlers."
+      evidence:
+        - "Backend API: app/modules/accounts/api.py"
+        - "Backend schemas: app/modules/accounts/schemas.py"
+        - "Backend service/repository: app/modules/accounts/service.py, app/modules/accounts/repository.py"
+        - "Summary mapper: app/modules/accounts/mappers.py"
+        - "Frontend schema/API/hooks: frontend/src/features/accounts/schemas.ts, api.ts, hooks/use-accounts.ts"
+        - "Frontend UI: frontend/src/features/accounts/components/account-list-item.tsx, account-detail.tsx, account-actions.tsx, accounts-page.tsx"
+        - "Mocks/tests: frontend/src/test/mocks/handlers.ts, factories.ts, frontend/src/__integration__/accounts-flow.test.tsx, tests/integration/test_accounts_api.py"
+        - "Spec: openspec/changes/weighted-account-routing/specs/account-routing/spec.md"
+      recommendation: "Extend `weighted-account-routing` with dashboard/API requirements, add `routingTier` to account summaries, add a focused update endpoint, add React Query mutation and Accounts detail selector. Keep Settings weight editor out of first tranche."
+      verify_candidates:
+        - "openspec validate weighted-account-routing --strict"
+        - ".venv/bin/python -m pytest tests/integration/test_accounts_api.py tests/unit/test_db_models.py"
+        - "npm --prefix frontend test -- accounts"
+        - "npm --prefix frontend run typecheck"
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Choose the safest OpenSpec and implementation sequence for account tier UI."
+    inputs:
+      - "T001 receipt"
+      - "Goal intake facts."
+    constraints:
+      - "Read-only."
+      - "Require OpenSpec before behavior implementation."
+      - "Keep first tranche focused on account tier UI/API unless evidence requires tier-weight settings UI."
+    expected_output:
+      - "Decision on OpenSpec change id."
+      - "Exact Worker objective for OpenSpec artifacts."
+      - "Exact Worker objective for backend/API slice."
+      - "Exact Worker objective for frontend UI slice."
+      - "allowed_files"
+      - "verify"
+      - "stop_if"
+    receipt:
+      result: done
+      status: done
+      decision: "Extend existing `weighted-account-routing` OpenSpec change. Do not create a second change. Implement first tranche as per-account tier assignment in Accounts UI/API."
+      scope:
+        - "API returns `routingTier` as `gold`, `silver`, `bronze`, or null/default."
+        - "API accepts tier update for `gold`, `silver`, `bronze`, or null/default; invalid values reject."
+        - "Accounts detail UI exposes compact selector and persists changes through React Query."
+        - "Settings UI for tier weights remains out of scope."
+      worker_sequence:
+        - "T003 update OpenSpec spec/tasks."
+        - "T004 implement backend API/schema/service/repository tests."
+        - "T005 implement frontend schema/API/hook/UI/mock/tests."
+      verify:
+        - "openspec validate weighted-account-routing --strict"
+        - ".venv/bin/python -m pytest tests/integration/test_accounts_api.py tests/unit/test_db_models.py"
+        - "npm --prefix frontend test -- accounts"
+        - "npm --prefix frontend run typecheck"
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Create or update OpenSpec artifacts for account tier UI/API as selected by Judge."
+    allowed_files:
+      - "openspec/changes/weighted-account-routing/specs/account-routing/spec.md"
+      - "openspec/changes/weighted-account-routing/tasks.md"
+    verify:
+      - "openspec validate weighted-account-routing --strict"
+    stop_if:
+      - "Need OpenSpec files outside Judge-approved allowed_files."
+      - "The intended UI/API behavior is ambiguous."
+    receipt:
+      result: done
+      status: done
+      summary: "Extended `weighted-account-routing` OpenSpec with dashboard/API account tier assignment requirements and task checklist."
+      changed_files:
+        - "openspec/changes/weighted-account-routing/specs/account-routing/spec.md"
+        - "openspec/changes/weighted-account-routing/tasks.md"
+      verification:
+        - command: "openspec validate weighted-account-routing --strict"
+          result: pass
+      commands:
+        - command: "openspec validate weighted-account-routing --strict"
+          status: pass
+  - id: T004
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Implement the backend/API persistence slice for account tier updates as selected by Judge."
+    allowed_files:
+      - "app/modules/accounts/api.py"
+      - "app/modules/accounts/schemas.py"
+      - "app/modules/accounts/service.py"
+      - "app/modules/accounts/repository.py"
+      - "app/modules/accounts/mappers.py"
+      - "tests/integration/test_accounts_api.py"
+      - "tests/unit/test_db_models.py"
+      - "openspec/changes/weighted-account-routing/tasks.md"
+    verify:
+      - ".venv/bin/python -m pytest tests/integration/test_accounts_api.py tests/unit/test_db_models.py"
+    stop_if:
+      - "Need files outside allowed_files."
+      - "Database/schema contract conflicts with the existing routing_tier migration."
+      - "Verification fails twice."
+    receipt:
+      result: done
+      status: done
+      summary: "Added account routing tier to account summaries plus `PUT /api/accounts/{account_id}/routing-tier` for set/clear. Invalid tiers reject before persistence. Account selection cache invalidates on successful tier changes."
+      changed_files:
+        - "app/modules/accounts/api.py"
+        - "app/modules/accounts/schemas.py"
+        - "app/modules/accounts/service.py"
+        - "app/modules/accounts/repository.py"
+        - "app/modules/accounts/mappers.py"
+        - "tests/integration/test_accounts_api.py"
+        - "openspec/changes/weighted-account-routing/tasks.md"
+      verification:
+        - command: ".venv/bin/python -m pytest tests/integration/test_accounts_api.py tests/unit/test_db_models.py"
+          result: pass
+        - command: "openspec validate weighted-account-routing --strict"
+          result: pass
+      commands:
+        - command: ".venv/bin/python -m pytest tests/integration/test_accounts_api.py tests/unit/test_db_models.py"
+          status: pass
+        - command: ".venv/bin/python -m ruff check app/modules/accounts tests/integration/test_accounts_api.py tests/unit/test_db_models.py"
+          status: pass
+        - command: "openspec validate weighted-account-routing --strict"
+          status: pass
+  - id: T005
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Implement the Accounts page UI slice for viewing and editing account routing tiers as selected by Judge."
+    allowed_files:
+      - "frontend/src/features/accounts/schemas.ts"
+      - "frontend/src/features/accounts/schemas.test.ts"
+      - "frontend/src/features/accounts/api.ts"
+      - "frontend/src/features/accounts/hooks/use-accounts.ts"
+      - "frontend/src/features/accounts/hooks/use-accounts.test.ts"
+      - "frontend/src/features/accounts/components/account-detail.tsx"
+      - "frontend/src/features/accounts/components/account-actions.tsx"
+      - "frontend/src/features/accounts/components/account-list-item.tsx"
+      - "frontend/src/features/accounts/components/account-list-item.test.tsx"
+      - "frontend/src/features/accounts/components/account-list.test.tsx"
+      - "frontend/src/test/mocks/factories.ts"
+      - "frontend/src/test/mocks/handlers.ts"
+      - "frontend/src/test/mocks/handler-coverage.test.ts"
+      - "frontend/src/__integration__/accounts-flow.test.tsx"
+      - "openspec/changes/weighted-account-routing/tasks.md"
+    verify:
+      - "npm --prefix frontend test -- accounts"
+      - "npm --prefix frontend run typecheck"
+    stop_if:
+      - "Need files outside allowed_files."
+      - "UI requires a broader redesign instead of a focused control."
+      - "Verification fails twice."
+    receipt:
+      result: done
+      status: done
+      summary: "Added Accounts page tier UI. Account list displays effective tier/default bronze, detail panel exposes a compact Routing tier selector, and React Query mutation persists set/clear through the new API."
+      changed_files:
+        - "frontend/src/features/accounts/schemas.ts"
+        - "frontend/src/features/accounts/schemas.test.ts"
+        - "frontend/src/features/accounts/api.ts"
+        - "frontend/src/features/accounts/hooks/use-accounts.ts"
+        - "frontend/src/features/accounts/hooks/use-accounts.test.ts"
+        - "frontend/src/features/accounts/components/account-detail.tsx"
+        - "frontend/src/features/accounts/components/account-list-item.tsx"
+        - "frontend/src/features/accounts/components/account-list-item.test.tsx"
+        - "frontend/src/features/accounts/components/account-list.test.tsx"
+        - "frontend/src/test/mocks/factories.ts"
+        - "frontend/src/test/mocks/handlers.ts"
+        - "frontend/src/test/mocks/handler-coverage.test.ts"
+        - "frontend/src/__integration__/accounts-flow.test.tsx"
+        - "openspec/changes/weighted-account-routing/tasks.md"
+      verification:
+        - command: "npm --prefix frontend test -- src/features/accounts/schemas.test.ts src/features/accounts/hooks/use-accounts.test.ts src/features/accounts/components/account-list-item.test.tsx src/features/accounts/components/account-list.test.tsx src/__integration__/accounts-flow.test.tsx src/test/mocks/handler-coverage.test.ts"
+          result: pass
+        - command: "npm --prefix frontend run typecheck"
+          result: pass
+        - command: "npx eslint src/features/accounts src/test/mocks/handler-coverage.test.ts src/__integration__/accounts-flow.test.tsx"
+          result: pass
+        - command: "Playwright live check against temp backend + Vite"
+          result: "pass; selector persisted gold after reload and list showed Gold"
+      known_unrelated:
+        - "Full `npm --prefix frontend test -- accounts` still fails existing `oauth-dialog.test.tsx` pasted-callback expectation outside touched files."
+        - "Full `npm --prefix frontend run lint` still fails existing `frontend/src/features/apis/components/api-request-history.tsx` unused `_apiKeyName` outside touched files."
+      commands:
+        - command: "npm --prefix frontend test -- src/features/accounts/schemas.test.ts src/features/accounts/hooks/use-accounts.test.ts src/features/accounts/components/account-list-item.test.tsx src/features/accounts/components/account-list.test.tsx src/__integration__/accounts-flow.test.tsx src/test/mocks/handler-coverage.test.ts"
+          status: pass
+        - command: "npm --prefix frontend run typecheck"
+          status: pass
+        - command: "npx eslint src/features/accounts src/test/mocks/handler-coverage.test.ts src/__integration__/accounts-flow.test.tsx"
+          status: pass
+        - command: "Playwright live check against temp backend + Vite"
+          status: pass
+  - id: T006
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Audit whether the account tier UI/API workflow satisfies the original request."
+    inputs:
+      - "All done task receipts"
+      - "Last verification"
+      - "Current diff"
+    constraints:
+      - "Read-only."
+      - "Reject completion if UI cannot persist tiers."
+      - "Reject completion if default/unlabeled bronze behavior is unverified."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "missing evidence"
+      - "next task if not complete"
+    receipt:
+      result: done
+      status: complete
+      decision: complete
+      full_outcome_complete: true
+      summary: "Account tier UI/API workflow satisfies original request. Operators can view default/gold/silver/bronze labels in the Accounts list, set/clear tier from selected account detail, API persists the value, and live browser verification proved gold persisted across reload."
+      missing_evidence: []
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Final audit against the original request to add the account tier UI."
+    inputs:
+      - "All done task receipts"
+      - "Last verification"
+      - "Current dirty diff"
+    constraints:
+      - "Read-only."
+      - "Reject completion if any required Worker task is still queued or active."
+      - "Reject completion if only backend or spec work is done without a usable dashboard workflow."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "Mapping from original request to evidence"
+      - "Next task if not complete"
+    receipt:
+      result: done
+      status: complete
+      decision: complete
+      full_outcome_complete: true
+      summary: "Final audit complete. Original request was to add UI for account tiers; implementation includes OpenSpec requirements, backend persistence API, Accounts list effective tier display, detail selector for gold/silver/bronze/default, focused tests, typecheck, scoped lint, and live browser persistence proof."
+      evidence:
+        - "PUT /api/accounts/{account_id}/routing-tier persists set/clear."
+        - "GET /api/accounts returns `routingTier` for dashboard display."
+        - "Accounts page list shows effective tier/default bronze."
+        - "Selected account detail has Routing tier selector."
+        - "Live Playwright check changed account to gold, reloaded, and observed persisted gold plus list Gold."
+      missing_evidence: []
+
+checks:
+  dirty_fingerprint: unknown
+  last_verification:
+    result: pass
+    task: T005
+    commands:
+      - ".venv/bin/python -m pytest tests/integration/test_accounts_api.py tests/unit/test_db_models.py"
+      - "npm --prefix frontend test -- src/features/accounts/schemas.test.ts src/features/accounts/hooks/use-accounts.test.ts src/features/accounts/components/account-list-item.test.tsx src/features/accounts/components/account-list.test.tsx src/__integration__/accounts-flow.test.tsx src/test/mocks/handler-coverage.test.ts"
+      - "npm --prefix frontend run typecheck"
+      - "npx eslint src/features/accounts src/test/mocks/handler-coverage.test.ts src/__integration__/accounts-flow.test.tsx"
+      - ".venv/bin/python -m ruff check app/modules/accounts tests/integration/test_accounts_api.py tests/unit/test_db_models.py"
+      - "openspec validate weighted-account-routing --strict"
+      - "Playwright live check against temp backend + Vite"

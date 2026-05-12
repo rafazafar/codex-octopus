@@ -36,6 +36,30 @@ The system MUST treat accounts with no routing tier, an empty routing tier, or a
 - **THEN** the account remains eligible for routing
 - **AND** the account uses the configured `bronze` tier weight
 
+### Requirement: Dashboard operators can assign account routing tiers
+The dashboard accounts API and Accounts page MUST let authenticated operators view and persist each account's routing tier. Operators MUST be able to set `gold`, `silver`, `bronze`, or clear the override to use default bronze behavior.
+
+#### Scenario: Account list exposes stored routing tier
+- **WHEN** the dashboard lists accounts
+- **THEN** each account payload includes its stored routing tier when one is configured
+- **AND** accounts with no stored routing tier expose no override while still using bronze selection behavior
+
+#### Scenario: Operator updates an account routing tier
+- **WHEN** an authenticated dashboard operator sets an account routing tier to `gold`, `silver`, or `bronze`
+- **THEN** the account is persisted with that routing tier
+- **AND** subsequent account list responses return the saved tier
+- **AND** weighted account selection uses the saved tier weight
+
+#### Scenario: Operator clears an account routing tier
+- **WHEN** an authenticated dashboard operator clears an account routing tier
+- **THEN** the account stores no explicit routing tier
+- **AND** subsequent account list responses expose no override
+- **AND** weighted account selection treats the account as bronze
+
+#### Scenario: Invalid routing tier is rejected
+- **WHEN** an authenticated dashboard operator submits a routing tier outside `gold`, `silver`, `bronze`, or clear/default
+- **THEN** the dashboard API rejects the update without changing the stored account tier
+
 ### Requirement: Sticky affinity is not redistributed by tier weights
 The system MUST preserve existing sticky-affinity semantics when a sticky key already maps to an eligible account. Tier weights MUST apply when selecting a fallback or a new non-sticky account, not when deciding whether to keep an eligible existing sticky mapping.
 

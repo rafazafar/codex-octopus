@@ -14,3 +14,9 @@
 - [x] 3.1 Add focused tests proving gold/silver/bronze weighted-share distribution with configurable weights.
 - [x] 3.2 Add focused tests proving missing, empty, or unknown account tiers use bronze behavior and remain routable.
 - [x] 3.3 Run focused balancer/database tests and OpenSpec validation.
+
+## 4. Dashboard Tier Assignment
+
+- [x] 4.1 Extend account list/update API contracts so dashboard operators can view, set, and clear account routing tiers.
+- [x] 4.2 Add Accounts page controls for persisted `gold`, `silver`, `bronze`, and default tier assignment.
+- [x] 4.3 Verify backend persistence/default behavior and frontend account-tier workflow.

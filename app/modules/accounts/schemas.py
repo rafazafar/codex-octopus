@@ -2,11 +2,14 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import List
+from typing import List, Literal
 
 from pydantic import Field
 
 from app.modules.shared.schemas import DashboardModel
+
+AccountRoutingTier = Literal["gold", "silver", "bronze"]
+AccountRoutingTierUpdateValue = Literal["gold", "silver", "bronze", "default"]
 
 
 class UsageTrendPoint(DashboardModel):
@@ -77,6 +80,7 @@ class AccountSummary(DashboardModel):
     additional_quotas: list[AccountAdditionalQuota] = Field(default_factory=list)
     deactivation_reason: str | None = None
     auth: AccountAuthStatus | None = None
+    routing_tier: AccountRoutingTier | None = None
 
 
 class AccountsResponse(DashboardModel):
@@ -111,6 +115,15 @@ class AccountPauseResponse(DashboardModel):
 
 class AccountReactivateResponse(DashboardModel):
     status: str
+
+
+class AccountRoutingTierUpdateRequest(DashboardModel):
+    routing_tier: AccountRoutingTierUpdateValue | None = None
+
+
+class AccountRoutingTierUpdateResponse(DashboardModel):
+    status: str
+    routing_tier: AccountRoutingTier | None = None
 
 
 class AccountDeleteResponse(DashboardModel):

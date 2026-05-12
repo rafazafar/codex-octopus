@@ -95,6 +95,7 @@ export function createAccountSummary(
 			refresh: { state: "stored" },
 			idToken: { state: "parsed" },
 		},
+		routingTier: null,
 		...overrides,
 	});
 }

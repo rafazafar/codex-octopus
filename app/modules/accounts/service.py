@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import date
-from datetime import timedelta
+from datetime import date, timedelta
 from typing import cast
 
 from pydantic import ValidationError
@@ -15,23 +14,25 @@ from app.core.cache.invalidation import NAMESPACE_API_KEY, get_cache_invalidatio
 from app.core.crypto import TokenEncryptor
 from app.core.utils.time import naive_utc_to_epoch, utcnow
 from app.db.models import Account, AccountStatus
+from app.modules.accounts.mappers import build_account_summaries, build_account_usage_trends
 from app.modules.accounts.portable import (
     PortableAccountBatch,
     PortableImportFormat,
     build_portable_export_account,
     parse_portable_account_batch,
 )
-from app.modules.accounts.mappers import build_account_summaries, build_account_usage_trends
 from app.modules.accounts.repository import AccountsRepository
 from app.modules.accounts.schemas import (
     AccountAdditionalQuota,
     AccountAdditionalWindow,
-    AccountImportResponse,
     AccountImportFormat,
-    ImportedAccountSummary,
+    AccountImportResponse,
     AccountRequestUsage,
+    AccountRoutingTier,
+    AccountRoutingTierUpdateValue,
     AccountSummary,
     AccountTrendsResponse,
+    ImportedAccountSummary,
 )
 from app.modules.proxy.account_cache import get_account_selection_cache
 from app.modules.usage.additional_quota_keys import get_additional_display_label_for_quota_key
@@ -220,6 +221,17 @@ class AccountsService:
         if result:
             get_account_selection_cache().invalidate()
         return result
+
+    async def update_routing_tier(
+        self,
+        account_id: str,
+        routing_tier: AccountRoutingTierUpdateValue | None,
+    ) -> tuple[bool, AccountRoutingTier | None]:
+        stored_tier: AccountRoutingTier | None = None if routing_tier in (None, "default") else routing_tier
+        result = await self._repo.update_routing_tier(account_id, stored_tier)
+        if result:
+            get_account_selection_cache().invalidate()
+        return result, stored_tier
 
     async def delete_account(self, account_id: str) -> bool:
         result = await self._repo.delete(account_id)
