@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -33,6 +33,11 @@ describe("StickySessionsSection", () => {
     };
     const purgeMutation = {
       mutateAsync: vi.fn().mockResolvedValue(undefined),
+      isPending: false,
+      error: null,
+    };
+    const deleteAllMutation = {
+      mutateAsync: vi.fn().mockResolvedValue({ deletedCount: 2 }),
       isPending: false,
       error: null,
     };
@@ -83,6 +88,7 @@ describe("StickySessionsSection", () => {
       },
       deleteMutation,
       deleteFilteredMutation,
+      deleteAllMutation,
       purgeMutation,
     } as never);
 
@@ -140,6 +146,13 @@ describe("StickySessionsSection", () => {
       expect(purgeMutation.mutateAsync).toHaveBeenCalledWith(true);
     });
 
+    await user.click(screen.getByRole("button", { name: "Purge All" }));
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Purge All" }));
+
+    await waitFor(() => {
+      expect(deleteAllMutation.mutateAsync).toHaveBeenCalledOnce();
+    });
+
     await user.click(screen.getAllByRole("button", { name: "Remove" })[0]!);
     await user.click(screen.getByRole("button", { name: "Delete" }));
 
@@ -187,6 +200,11 @@ describe("StickySessionsSection", () => {
         error: null,
       },
       deleteFilteredMutation: {
+        mutateAsync: vi.fn(),
+        isPending: false,
+        error: null,
+      },
+      deleteAllMutation: {
         mutateAsync: vi.fn(),
         isPending: false,
         error: null,
@@ -247,6 +265,11 @@ describe("StickySessionsSection", () => {
         error: null,
       },
       deleteFilteredMutation: {
+        mutateAsync: vi.fn(),
+        isPending: false,
+        error: null,
+      },
+      deleteAllMutation: {
         mutateAsync: vi.fn(),
         isPending: false,
         error: null,
@@ -312,6 +335,11 @@ describe("StickySessionsSection", () => {
         isPending: false,
         error: null,
       },
+      deleteAllMutation: {
+        mutateAsync: vi.fn(),
+        isPending: false,
+        error: null,
+      },
       purgeMutation: {
         mutateAsync: vi.fn(),
         isPending: false,
@@ -373,6 +401,11 @@ describe("StickySessionsSection", () => {
         isPending: false,
         error: null,
       },
+      deleteAllMutation: {
+        mutateAsync: vi.fn(),
+        isPending: false,
+        error: null,
+      },
       purgeMutation: {
         mutateAsync: vi.fn(),
         isPending: false,
@@ -387,5 +420,58 @@ describe("StickySessionsSection", () => {
 
     expect(screen.getByRole("button", { name: "Updated ↓" })).toBeInTheDocument();
     expect(screen.getByText("1–10 of 20")).toBeInTheDocument();
+  });
+
+  it("disables purge-all when no sticky sessions exist", () => {
+    useStickySessionsMock.mockReturnValue({
+      params: {
+        staleOnly: false,
+        accountQuery: "",
+        keyQuery: "",
+        sortBy: "updated_at",
+        sortDir: "desc",
+        offset: 0,
+        limit: 10,
+      },
+      setAccountQuery: vi.fn(),
+      setKeyQuery: vi.fn(),
+      setSort: vi.fn(),
+      setOffset: vi.fn(),
+      setLimit: vi.fn(),
+      stickySessionsQuery: {
+        data: {
+          entries: [],
+          stalePromptCacheCount: 0,
+          total: 0,
+          hasMore: false,
+        },
+        isLoading: false,
+        error: null,
+      },
+      deleteMutation: {
+        mutateAsync: vi.fn(),
+        isPending: false,
+        error: null,
+      },
+      deleteFilteredMutation: {
+        mutateAsync: vi.fn(),
+        isPending: false,
+        error: null,
+      },
+      deleteAllMutation: {
+        mutateAsync: vi.fn(),
+        isPending: false,
+        error: null,
+      },
+      purgeMutation: {
+        mutateAsync: vi.fn(),
+        isPending: false,
+        error: null,
+      },
+    } as never);
+
+    render(<StickySessionsSection />);
+
+    expect(screen.getByRole("button", { name: "Purge All" })).toBeDisabled();
   });
 });

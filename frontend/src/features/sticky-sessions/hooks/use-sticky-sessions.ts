@@ -115,6 +115,28 @@ export function useStickySessions() {
     },
   });
 
+  const deleteAllMutation = useMutation({
+    mutationFn: () =>
+      deleteFilteredStickySessions({
+        staleOnly: false,
+        accountQuery: "",
+        keyQuery: "",
+      }),
+    onSuccess: async (response: StickySessionsDeleteFilteredResponse) => {
+      if (response.deletedCount > 0) {
+        toast.success(
+          response.deletedCount === 1 ? "Sticky session purged" : `Purged ${response.deletedCount} sticky sessions`,
+        );
+      } else {
+        toast.error("No sticky sessions could be purged");
+      }
+      await invalidate();
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to purge sticky sessions");
+    },
+  });
+
   const purgeMutation = useMutation({
     mutationFn: (staleOnly: boolean) => purgeStickySessions({ staleOnly }),
     onSuccess: (response) => {
@@ -136,6 +158,7 @@ export function useStickySessions() {
     stickySessionsQuery,
     deleteMutation,
     deleteFilteredMutation,
+    deleteAllMutation,
     purgeMutation,
   };
 }

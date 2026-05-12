@@ -176,7 +176,8 @@ describe("useStickySessions", () => {
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
     const filteredDeleteSpy = vi
       .spyOn(stickySessionsApi, "deleteFilteredStickySessions")
-      .mockResolvedValueOnce({ deletedCount: 2 });
+      .mockResolvedValueOnce({ deletedCount: 2 })
+      .mockResolvedValueOnce({ deletedCount: 12 });
 
     const { result } = renderHook(() => useStickySessions(), {
       wrapper: createWrapper(queryClient),
@@ -196,6 +197,14 @@ describe("useStickySessions", () => {
       accountQuery: "sticky-a",
       keyQuery: "thread",
     });
+
+    await result.current.deleteAllMutation.mutateAsync();
+
+    expect(filteredDeleteSpy).toHaveBeenLastCalledWith({
+      staleOnly: false,
+      accountQuery: "",
+      keyQuery: "",
+    });
     await waitFor(() => {
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["sticky-sessions", "list"] });
     });
@@ -211,6 +220,7 @@ describe("useStickySessions", () => {
       .mockRejectedValueOnce(new Error(""));
     const deleteFilteredSpy = vi
       .spyOn(stickySessionsApi, "deleteFilteredStickySessions")
+      .mockRejectedValueOnce(new Error(""))
       .mockRejectedValueOnce(new Error(""));
     const purgeSpy = vi
       .spyOn(stickySessionsApi, "purgeStickySessions")
@@ -225,6 +235,7 @@ describe("useStickySessions", () => {
       result.current.deleteMutation.mutateAsync([{ key: "thread_123", kind: "prompt_cache" }]),
     ).rejects.toThrow();
     await expect(result.current.deleteFilteredMutation.mutateAsync()).rejects.toThrow();
+    await expect(result.current.deleteAllMutation.mutateAsync()).rejects.toThrow();
     await expect(result.current.purgeMutation.mutateAsync(true)).rejects.toThrow();
 
     expect(toastSpy).toHaveBeenCalledWith("Failed to delete sticky sessions");

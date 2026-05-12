@@ -72,11 +72,13 @@ export function StickySessionsSection() {
     stickySessionsQuery,
     deleteMutation,
     deleteFilteredMutation,
+    deleteAllMutation,
     purgeMutation,
   } = useStickySessions();
   const deleteDialog = useDialogState<StickySessionIdentifier>();
   const deleteSelectedDialog = useDialogState<StickySessionIdentifier[]>();
   const deleteFilteredDialog = useDialogState<number>();
+  const deleteAllDialog = useDialogState<number>();
   const purgeDialog = useDialogState();
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
 
@@ -85,15 +87,26 @@ export function StickySessionsSection() {
       getErrorMessageOrNull(stickySessionsQuery.error) ||
       getErrorMessageOrNull(deleteMutation.error) ||
       getErrorMessageOrNull(deleteFilteredMutation.error) ||
+      getErrorMessageOrNull(deleteAllMutation.error) ||
       getErrorMessageOrNull(purgeMutation.error),
-    [stickySessionsQuery.error, deleteMutation.error, deleteFilteredMutation.error, purgeMutation.error],
+    [
+      stickySessionsQuery.error,
+      deleteMutation.error,
+      deleteFilteredMutation.error,
+      deleteAllMutation.error,
+      purgeMutation.error,
+    ],
   );
 
   const entries = stickySessionsQuery.data?.entries ?? EMPTY_STICKY_SESSION_ENTRIES;
   const staleCount = stickySessionsQuery.data?.stalePromptCacheCount ?? 0;
   const total = stickySessionsQuery.data?.total ?? 0;
   const hasMore = stickySessionsQuery.data?.hasMore ?? false;
-  const busy = deleteMutation.isPending || deleteFilteredMutation.isPending || purgeMutation.isPending;
+  const busy =
+    deleteMutation.isPending ||
+    deleteFilteredMutation.isPending ||
+    deleteAllMutation.isPending ||
+    purgeMutation.isPending;
   const hasEntries = entries.length > 0;
   const hasAnyRows = total > 0;
   const hasActiveTextFilter = params.accountQuery.trim().length > 0 || params.keyQuery.trim().length > 0;
@@ -216,6 +229,16 @@ export function StickySessionsSection() {
             onClick={() => purgeDialog.show()}
           >
             Purge stale
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="destructive"
+            className="h-8 text-xs"
+            disabled={busy || total === 0}
+            onClick={() => deleteAllDialog.show(total)}
+          >
+            Purge All
           </Button>
         </div>
       </div>
@@ -391,11 +414,14 @@ export function StickySessionsSection() {
           if (selectedDeleteTargets.length === 0) {
             return;
           }
-          void deleteMutation.mutateAsync(selectedDeleteTargets).then((response) => {
-            setSelectedRowIds(response.failed.map((entry) => stickySessionRowId(entry)));
-          }).finally(() => {
-            deleteSelectedDialog.hide();
-          });
+          void deleteMutation
+            .mutateAsync(selectedDeleteTargets)
+            .then((response) => {
+              setSelectedRowIds(response.failed.map((entry) => stickySessionRowId(entry)));
+            })
+            .finally(() => {
+              deleteSelectedDialog.hide();
+            });
         }}
       />
 
@@ -406,11 +432,14 @@ export function StickySessionsSection() {
         confirmLabel="Delete Filtered"
         onOpenChange={deleteFilteredDialog.onOpenChange}
         onConfirm={() => {
-          void deleteFilteredMutation.mutateAsync().then(() => {
-            setSelectedRowIds([]);
-          }).finally(() => {
-            deleteFilteredDialog.hide();
-          });
+          void deleteFilteredMutation
+            .mutateAsync()
+            .then(() => {
+              setSelectedRowIds([]);
+            })
+            .finally(() => {
+              deleteFilteredDialog.hide();
+            });
         }}
       />
 
@@ -424,6 +453,24 @@ export function StickySessionsSection() {
           void purgeMutation.mutateAsync(true).finally(() => {
             purgeDialog.hide();
           });
+        }}
+      />
+
+      <ConfirmDialog
+        open={deleteAllDialog.open}
+        title="Purge all sticky sessions"
+        description={`Delete all ${deleteAllDialog.data ?? 0} sticky-session mappings? Future requests will create new mappings.`}
+        confirmLabel="Purge All"
+        onOpenChange={deleteAllDialog.onOpenChange}
+        onConfirm={() => {
+          void deleteAllMutation
+            .mutateAsync()
+            .then(() => {
+              setSelectedRowIds([]);
+            })
+            .finally(() => {
+              deleteAllDialog.hide();
+            });
         }}
       />
     </section>
