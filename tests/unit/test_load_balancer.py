@@ -1170,6 +1170,116 @@ def test_select_account_capacity_weighted_three_tiers_distribution_matches_capac
     assert pro_ratio > plus_ratio > free_ratio
 
 
+def test_select_account_capacity_weighted_applies_configured_routing_tier_weights():
+    random.seed(99)
+    n = 3000
+    gold = AccountState(
+        "gold",
+        AccountStatus.ACTIVE,
+        used_percent=0.0,
+        secondary_used_percent=0.0,
+        plan_type="plus",
+        capacity_credits=100.0,
+        routing_tier="gold",
+    )
+    bronze = AccountState(
+        "bronze",
+        AccountStatus.ACTIVE,
+        used_percent=0.0,
+        secondary_used_percent=0.0,
+        plan_type="plus",
+        capacity_credits=100.0,
+        routing_tier="bronze",
+    )
+
+    counts = {"gold": 0, "bronze": 0}
+    for _ in range(n):
+        result = select_account(
+            [gold, bronze],
+            routing_strategy="capacity_weighted",
+            routing_tier_weights={"gold": 6.0, "silver": 3.0, "bronze": 1.0},
+        )
+        assert result.account is not None
+        counts[result.account.account_id] += 1
+
+    gold_ratio = counts["gold"] / n
+    assert abs(gold_ratio - (6.0 / 7.0)) <= 0.05
+    assert counts["gold"] > counts["bronze"]
+
+
+def test_select_account_capacity_weighted_missing_routing_tier_defaults_to_bronze():
+    random.seed(100)
+    n = 3000
+    unlabeled = AccountState(
+        "unlabeled",
+        AccountStatus.ACTIVE,
+        used_percent=0.0,
+        secondary_used_percent=0.0,
+        plan_type="plus",
+        capacity_credits=100.0,
+    )
+    silver = AccountState(
+        "silver",
+        AccountStatus.ACTIVE,
+        used_percent=0.0,
+        secondary_used_percent=0.0,
+        plan_type="plus",
+        capacity_credits=100.0,
+        routing_tier="silver",
+    )
+
+    counts = {"unlabeled": 0, "silver": 0}
+    for _ in range(n):
+        result = select_account(
+            [unlabeled, silver],
+            routing_strategy="capacity_weighted",
+            routing_tier_weights={"gold": 6.0, "silver": 3.0, "bronze": 1.0},
+        )
+        assert result.account is not None
+        counts[result.account.account_id] += 1
+
+    silver_ratio = counts["silver"] / n
+    assert abs(silver_ratio - (3.0 / 4.0)) <= 0.05
+    assert counts["silver"] > counts["unlabeled"]
+
+
+def test_select_account_capacity_weighted_unknown_routing_tier_defaults_to_bronze():
+    random.seed(101)
+    n = 3000
+    unknown = AccountState(
+        "unknown",
+        AccountStatus.ACTIVE,
+        used_percent=0.0,
+        secondary_used_percent=0.0,
+        plan_type="plus",
+        capacity_credits=100.0,
+        routing_tier="platinum",
+    )
+    gold = AccountState(
+        "gold",
+        AccountStatus.ACTIVE,
+        used_percent=0.0,
+        secondary_used_percent=0.0,
+        plan_type="plus",
+        capacity_credits=100.0,
+        routing_tier="gold",
+    )
+
+    counts = {"unknown": 0, "gold": 0}
+    for _ in range(n):
+        result = select_account(
+            [unknown, gold],
+            routing_strategy="capacity_weighted",
+            routing_tier_weights={"gold": 6.0, "silver": 3.0, "bronze": 1.0},
+        )
+        assert result.account is not None
+        counts[result.account.account_id] += 1
+
+    gold_ratio = counts["gold"] / n
+    assert abs(gold_ratio - (6.0 / 7.0)) <= 0.05
+    assert counts["gold"] > counts["unknown"]
+
+
 def test_select_account_capacity_weighted_prefers_earlier_reset_bucket():
     random.seed(55)
     now = time.time()

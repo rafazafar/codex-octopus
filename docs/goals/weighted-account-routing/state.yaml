@@ -1,0 +1,369 @@
+version: 2
+
+goal:
+  title: "Weighted Account Routing"
+  slug: "weighted-account-routing"
+  kind: open_ended
+  tranche: "Discover requirements, design safe routing bias, implement verified slices, and audit full outcome."
+  status: done
+  intake:
+    original_request: "Steer or bias routing to certain accounts by labeling accounts with tiers like gold, silver, bronze so certain accounts are used significantly more than others."
+    interpreted_outcome: "Account routing supports owner-defined weighted-share tiers that cause selected accounts to receive measurably more traffic than lower-tier accounts, with unlabeled accounts defaulting to bronze."
+    input_shape: vague
+    audience: "owner/operators of the account routing system"
+    authority: requested
+    proof_type: test
+    completion_proof: "Tests or simulation prove configured tier ratios bias route selection toward higher tiers within accepted tolerance, while existing routing behavior and constraints still pass."
+    likely_misfire: "Labels exist, but routing share is not measurably biased or existing routing safety constraints regress."
+    blind_spots_considered:
+      - "Tier semantics chosen as weighted share, not priority fallback."
+      - "Config-driven ratios chosen so operators can change tier weights."
+      - "Undefined/unlabeled accounts should default to bronze so existing accounts remain usable at low share."
+      - "First tranche should stay inside routing internals and config contract unless Scout/Judge prove API or UI changes are required."
+      - "What evidence proves significantly more traffic."
+    existing_plan_facts:
+      - "Local live GoalBuddy board selected."
+      - "Gold/silver/bronze should bias routing by weighted share."
+      - "Tier ratios should be config-driven rather than hardcoded policy."
+      - "Undefined/unlabeled accounts should default to bronze."
+      - "First tranche should avoid UI/API surface changes unless needed for routing internals."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+
+agents:
+  scout: bundled_not_installed
+  worker: bundled_not_installed
+  judge: bundled_not_installed
+
+visual_board:
+  selected: local
+  local:
+    status: live
+    url: "http://127.0.0.1:41737/"
+    command: "npx goalbuddy board /Users/zafar/dev/codex-octopus/docs/goals/weighted-account-routing"
+  github_projects:
+    status: not_requested
+    url: null
+    command: "npx goalbuddy extend github-projects"
+    missing: []
+
+active_task: null
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: default
+    objective: "Map the existing routing/account/spec surfaces relevant to weighted-share account tiers."
+    inputs:
+      - "openspec/specs/**"
+      - "Routing/account configuration code discovered by search."
+      - "Existing tests and verification commands discovered by search."
+    constraints:
+      - "Read-only."
+      - "Treat OpenSpec as source of truth."
+      - "Prefer concrete file-path evidence over generic advice."
+      - "Do not propose UI/API scope unless required by evidence."
+    expected_output:
+      - "Relevant capability specs and gaps."
+      - "Current routing/account selection flow."
+      - "Where tier/weight config could safely live."
+      - "How undefined/unlabeled accounts currently appear and how bronze default can preserve compatibility."
+      - "Existing verification commands."
+      - "Risk list and candidate Worker scopes."
+    receipt:
+      result: done
+      summary: "Routing selection is centered on AccountState/select_account in app/core/balancer/logic.py, fed by Account rows through app/modules/proxy/load_balancer.py. Existing capacity_weighted already uses random.choices over remaining secondary credits, but there is no account tier or per-tier weight config. Account persistence currently has Account.plan_type/status/reset/block fields but no routing tier. Settings expose routing_strategy only. OpenSpec main specs validate, but no current spec covers account weighting by owner labels."
+      evidence:
+        - "app/core/balancer/logic.py"
+        - "app/modules/proxy/load_balancer.py"
+        - "app/db/models.py"
+        - "app/modules/settings/schemas.py"
+        - "app/modules/accounts/schemas.py"
+        - "tests/unit/test_load_balancer.py"
+        - "openspec/changes/archive/2026-04-14-capacity-weighted-routing/proposal.md"
+      verification:
+        - cmd: "openspec validate --specs"
+          status: pass
+      candidate_worker_scopes:
+        - "OpenSpec change under openspec/changes/weighted-account-routing/**."
+        - "Minimal routing-internals slice likely touches app/core/balancer/logic.py, app/modules/proxy/load_balancer.py, app/db/models.py plus Alembic migration and focused balancer tests."
+      risks:
+        - "Pure settings-only account-id mapping would avoid schema/API changes but would not really label accounts and could be brittle during account import/delete."
+        - "DB account tier column preserves unlabeled accounts via nullable/default bronze semantics but creates migration and later API/UI follow-up work."
+        - "Existing sticky affinity may hide weighted distribution for sticky-key traffic; proof should focus non-sticky selection and avoid changing sticky behavior."
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Choose the safest first implementation sequence for config-driven weighted-share routing tiers."
+    inputs:
+      - "T001 receipt"
+      - "Original request and intake facts in goal state."
+    constraints:
+      - "Read-only."
+      - "Require OpenSpec change before behavior implementation."
+      - "Keep first tranche to routing internals and config contract unless evidence requires broader surface."
+    expected_output:
+      - "Decision on OpenSpec change id and requirements to add."
+      - "Decision confirming or revising bronze-default semantics for undefined accounts based on evidence."
+      - "Exact Worker objective for OpenSpec artifacts."
+      - "Exact Worker objective for first code slice."
+      - "allowed_files for each Worker slice."
+      - "verify commands and stop_if conditions."
+    receipt:
+      result: done
+      decision: "Proceed with change id weighted-account-routing. Add a new account-routing OpenSpec delta first. Preserve bronze-default semantics. First code slice should persist an account routing tier, map missing/unknown tiers to bronze, add config-driven tier weights in runtime settings, and apply tier weights inside capacity_weighted selection by multiplying remaining capacity by tier weight. Defer dashboard/API editing surface unless implementation evidence shows it is required."
+      open_spec_worker:
+        objective: "Create OpenSpec artifacts for account-routing weighted tiers under openspec/changes/weighted-account-routing/**."
+        allowed_files:
+          - "openspec/changes/weighted-account-routing/proposal.md"
+          - "openspec/changes/weighted-account-routing/design.md"
+          - "openspec/changes/weighted-account-routing/specs/account-routing/spec.md"
+          - "openspec/changes/weighted-account-routing/tasks.md"
+        verify:
+          - "openspec validate weighted-account-routing --strict"
+          - "openspec validate --specs"
+        stop_if:
+          - "OpenSpec CLI rejects new account-routing capability shape twice."
+          - "Need to modify main specs directly before implementation."
+      code_worker:
+        objective: "Implement config-driven weighted routing tiers for capacity_weighted account selection with bronze default for unlabeled accounts."
+        allowed_files:
+          - "app/core/balancer/logic.py"
+          - "app/modules/proxy/load_balancer.py"
+          - "app/db/models.py"
+          - "app/db/alembic/versions/20260512_000000_add_accounts_routing_tier.py"
+          - "app/core/config/settings.py"
+          - "tests/unit/test_load_balancer.py"
+          - "tests/unit/test_settings_cache.py"
+          - "tests/integration/test_db_models.py"
+        verify:
+          - ".venv/bin/python -m pytest tests/unit/test_load_balancer.py"
+          - ".venv/bin/python -m pytest tests/integration/test_db_models.py"
+          - "openspec validate weighted-account-routing --strict"
+          - "openspec validate --specs"
+        stop_if:
+          - "Need API/UI files for first tranche."
+          - "Need product decision beyond gold/silver/bronze weighted share and bronze default."
+          - "Migration head conflict cannot be resolved locally."
+          - "Verification fails twice."
+      next_allowed_task: T003
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Create or update OpenSpec change artifacts for weighted account routing as selected by Judge."
+    allowed_files:
+      - "openspec/changes/weighted-account-routing/proposal.md"
+      - "openspec/changes/weighted-account-routing/design.md"
+      - "openspec/changes/weighted-account-routing/specs/account-routing/spec.md"
+      - "openspec/changes/weighted-account-routing/tasks.md"
+    verify:
+      - "openspec validate weighted-account-routing --strict"
+      - "openspec validate --specs"
+    stop_if:
+      - "A different change id is required by existing repo conventions."
+      - "Need to edit files outside allowed_files."
+      - "OpenSpec requirements are ambiguous after Judge decision."
+    receipt:
+      result: done
+      changed_files:
+        - "openspec/changes/weighted-account-routing/proposal.md"
+        - "openspec/changes/weighted-account-routing/design.md"
+        - "openspec/changes/weighted-account-routing/specs/account-routing/spec.md"
+        - "openspec/changes/weighted-account-routing/tasks.md"
+      commands:
+        - cmd: "openspec validate weighted-account-routing --strict"
+          status: pass
+        - cmd: "openspec validate --specs"
+          status: pass
+      summary: "Created apply-ready OpenSpec change for account routing tiers, config-driven weights, bronze defaults, capacity_weighted integration, sticky preservation, and verification requirements."
+  - id: T004
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Implement the first bounded routing-internals/config-contract slice selected by Judge after OpenSpec artifacts exist."
+    allowed_files:
+      - "app/core/balancer/logic.py"
+      - "app/modules/proxy/load_balancer.py"
+      - "app/db/models.py"
+      - "app/db/alembic/versions/20260512_000000_add_accounts_routing_tier.py"
+      - "app/core/config/settings.py"
+      - "tests/unit/test_load_balancer.py"
+      - "tests/unit/test_settings_cache.py"
+      - "tests/integration/test_db_models.py"
+    verify:
+      - ".venv/bin/python -m pytest tests/unit/test_load_balancer.py"
+      - ".venv/bin/python -m pytest tests/integration/test_db_models.py"
+      - "openspec validate weighted-account-routing --strict"
+      - "openspec validate --specs"
+    stop_if:
+      - "Need files outside allowed_files."
+      - "Tier ratio semantics are ambiguous."
+      - "Verification fails twice."
+      - "Implementation requires UI/API scope not approved for this tranche."
+    receipt:
+      result: done
+      changed_files:
+        - "app/core/balancer/logic.py"
+        - "app/modules/proxy/load_balancer.py"
+        - "app/db/models.py"
+        - "app/db/alembic/versions/20260512_000000_add_accounts_routing_tier.py"
+        - "app/core/config/settings.py"
+        - "tests/unit/test_load_balancer.py"
+        - "tests/unit/test_settings_cache.py"
+        - "tests/integration/test_db_models.py"
+      commands:
+        - cmd: ".venv/bin/python -m pytest tests/unit/test_load_balancer.py"
+          status: pass
+        - cmd: ".venv/bin/python -m pytest tests/unit/test_settings_cache.py"
+          status: pass
+        - cmd: ".venv/bin/python -m pytest tests/integration/test_db_models.py"
+          status: pass
+        - cmd: ".venv/bin/python -m pytest tests/unit/test_load_balancer.py tests/unit/test_settings_cache.py tests/integration/test_db_models.py"
+          status: pass
+        - cmd: ".venv/bin/python -m ruff check app/core/config/settings.py app/core/balancer/logic.py app/db/models.py app/modules/proxy/load_balancer.py tests/unit/test_load_balancer.py tests/unit/test_settings_cache.py tests/integration/test_db_models.py app/db/alembic/versions/20260512_000000_add_accounts_routing_tier.py"
+          status: pass
+        - cmd: ".venv/bin/python -m ruff format --check app/core/config/settings.py app/core/balancer/logic.py app/db/models.py app/modules/proxy/load_balancer.py tests/unit/test_load_balancer.py tests/unit/test_settings_cache.py tests/integration/test_db_models.py app/db/alembic/versions/20260512_000000_add_accounts_routing_tier.py"
+          status: pass
+        - cmd: "CODEX_LB_DATABASE_URL=sqlite+aiosqlite:////tmp/codex-lb-weighted-routing.db .venv/bin/codex-lb-db upgrade head"
+          status: pass
+        - cmd: "CODEX_LB_DATABASE_URL=sqlite+aiosqlite:////tmp/codex-lb-weighted-routing.db .venv/bin/codex-lb-db check"
+          status: pass
+        - cmd: "openspec validate weighted-account-routing --strict"
+          status: pass
+        - cmd: "openspec validate --specs"
+          status: pass
+      summary: "Added nullable account routing_tier persistence, config-driven gold/silver/bronze weights, bronze fallback for missing/unknown tiers, and capacity_weighted tier multiplication while preserving existing selection filters and sticky behavior."
+  - id: T005
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Audit whether the implemented routing slice proves weighted-share tier bias, bronze default for unlabeled accounts, and preserved existing behavior."
+    inputs:
+      - "T001-T004 receipts"
+      - "Last verification output"
+      - "Current diff"
+    constraints:
+      - "Read-only."
+      - "Reject completion if weighting proof is missing."
+      - "Reject completion if undefined account behavior is untested."
+      - "Reject completion if OpenSpec and implementation diverge."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "Missing evidence or next Worker task"
+    receipt:
+      result: done
+      decision: "complete"
+      full_outcome_complete: false
+      summary: "Implementation slice proves weighted-share tier bias, bronze default for missing/unknown tiers, and preservation of existing routing filters through focused tests and OpenSpec requirements. Remaining housekeeping: mark OpenSpec implementation tasks complete before final audit."
+      evidence:
+        - "tests/unit/test_load_balancer.py::test_select_account_capacity_weighted_applies_configured_routing_tier_weights"
+        - "tests/unit/test_load_balancer.py::test_select_account_capacity_weighted_missing_routing_tier_defaults_to_bronze"
+        - "tests/unit/test_load_balancer.py::test_select_account_capacity_weighted_unknown_routing_tier_defaults_to_bronze"
+        - "tests/unit/test_settings_cache.py"
+        - "tests/integration/test_db_models.py"
+        - "openspec/changes/weighted-account-routing/specs/account-routing/spec.md"
+      next_task: T006
+  - id: T006
+    type: pm
+    assignee: PM
+    status: done
+    reasoning_hint: default
+    objective: "Sync OpenSpec task checklist after verified implementation."
+    inputs:
+      - "T003 receipt"
+      - "T004 receipt"
+      - "openspec/changes/weighted-account-routing/tasks.md"
+    constraints:
+      - "Only edit OpenSpec task checklist and board state."
+      - "Do not change implementation behavior."
+    expected_output:
+      - "OpenSpec tasks marked complete where verified."
+      - "Receipt with validation command."
+    receipt:
+      result: done
+      changed_files:
+        - "openspec/changes/weighted-account-routing/tasks.md"
+        - "docs/goals/weighted-account-routing/state.yaml"
+      commands:
+        - cmd: "openspec validate weighted-account-routing --strict"
+          status: pass
+      summary: "Marked OpenSpec implementation tasks complete after verified code and migration slice."
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Final audit against the original request for config-driven weighted account routing."
+    inputs:
+      - "All done task receipts"
+      - "Last verification"
+      - "Current dirty diff"
+    constraints:
+      - "Read-only."
+      - "Reject completion if required Worker work is still queued or active."
+      - "Reject completion if only planning/spec work is done and no routing behavior is implemented."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "Mapping from original request to evidence"
+      - "Next task if not complete"
+    receipt:
+      result: done
+      decision: "complete"
+      full_outcome_complete: true
+      summary: "The approved routing-internals/config-contract tranche satisfies the original weighted account routing request: accounts can carry a routing_tier label, missing/unknown labels default to bronze, tier weights are config-driven, and capacity_weighted routing uses those weights to select higher-tier accounts significantly more often while preserving existing eligibility and sticky-affinity behavior."
+      evidence:
+        - "OpenSpec change weighted-account-routing is valid."
+        - "Account routing tier persistence added through app/db/models.py and app/db/alembic/versions/20260512_000000_add_accounts_routing_tier.py."
+        - "Tier weights parse through app/core/config/settings.py."
+        - "Tier-weighted selection implemented in app/core/balancer/logic.py and wired through app/modules/proxy/load_balancer.py."
+        - "Distribution, bronze fallback, settings fallback, DB persistence, lint, formatting, migration, and OpenSpec checks all pass."
+      commands:
+        - cmd: ".venv/bin/python -m pytest tests/unit/test_load_balancer.py tests/unit/test_settings_cache.py tests/integration/test_db_models.py"
+          status: pass
+        - cmd: ".venv/bin/python -m ruff check app/core/config/settings.py app/core/balancer/logic.py app/db/models.py app/modules/proxy/load_balancer.py tests/unit/test_load_balancer.py tests/unit/test_settings_cache.py tests/integration/test_db_models.py app/db/alembic/versions/20260512_000000_add_accounts_routing_tier.py"
+          status: pass
+        - cmd: ".venv/bin/python -m ruff format --check app/core/config/settings.py app/core/balancer/logic.py app/db/models.py app/modules/proxy/load_balancer.py tests/unit/test_load_balancer.py tests/unit/test_settings_cache.py tests/integration/test_db_models.py app/db/alembic/versions/20260512_000000_add_accounts_routing_tier.py"
+          status: pass
+        - cmd: "CODEX_LB_DATABASE_URL=sqlite+aiosqlite:////tmp/codex-lb-weighted-routing.db .venv/bin/codex-lb-db upgrade head"
+          status: pass
+        - cmd: "CODEX_LB_DATABASE_URL=sqlite+aiosqlite:////tmp/codex-lb-weighted-routing.db .venv/bin/codex-lb-db check"
+          status: pass
+        - cmd: "openspec validate weighted-account-routing --strict"
+          status: pass
+        - cmd: "openspec validate --specs"
+          status: pass
+
+checks:
+  dirty_fingerprint: unknown
+  last_verification:
+    result: pass
+    task: T004
+    commands:
+      - ".venv/bin/python -m pytest tests/unit/test_load_balancer.py tests/unit/test_settings_cache.py tests/integration/test_db_models.py"
+      - ".venv/bin/python -m ruff check app/core/config/settings.py app/core/balancer/logic.py app/db/models.py app/modules/proxy/load_balancer.py tests/unit/test_load_balancer.py tests/unit/test_settings_cache.py tests/integration/test_db_models.py app/db/alembic/versions/20260512_000000_add_accounts_routing_tier.py"
+      - ".venv/bin/python -m ruff format --check app/core/config/settings.py app/core/balancer/logic.py app/db/models.py app/modules/proxy/load_balancer.py tests/unit/test_load_balancer.py tests/unit/test_settings_cache.py tests/integration/test_db_models.py app/db/alembic/versions/20260512_000000_add_accounts_routing_tier.py"
+      - "CODEX_LB_DATABASE_URL=sqlite+aiosqlite:////tmp/codex-lb-weighted-routing.db .venv/bin/codex-lb-db upgrade head"
+      - "CODEX_LB_DATABASE_URL=sqlite+aiosqlite:////tmp/codex-lb-weighted-routing.db .venv/bin/codex-lb-db check"
+      - "openspec validate weighted-account-routing --strict"
+      - "openspec validate --specs"

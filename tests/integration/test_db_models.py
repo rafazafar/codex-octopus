@@ -42,6 +42,20 @@ async def test_duplicate_emails_allowed(db_setup):
 
 
 @pytest.mark.asyncio
+async def test_account_routing_tier_persists(db_setup):
+    async with SessionLocal() as session:
+        account = _make_account("acc_tier", "tier@example.com", AccountStatus.ACTIVE)
+        account.routing_tier = "gold"
+        session.add(account)
+        await session.commit()
+
+    async with SessionLocal() as session:
+        result = await session.execute(select(Account).where(Account.id == "acc_tier"))
+        saved = result.scalar_one()
+        assert saved.routing_tier == "gold"
+
+
+@pytest.mark.asyncio
 async def test_status_enum_rejects_invalid_value(db_setup):
     async with SessionLocal() as session:
         account = _make_account("acc3", "enum@example.com", AccountStatus.ACTIVE)

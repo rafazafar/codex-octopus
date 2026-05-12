@@ -77,6 +77,7 @@ class Account(Base):
     deactivation_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     reset_at: Mapped[int | None] = mapped_column(Integer, nullable=True)
     blocked_at: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    routing_tier: Mapped[str | None] = mapped_column(String, nullable=True)
 
     api_key_assignments: Mapped[list["ApiKeyAccountAssignment"]] = relationship(
         "ApiKeyAccountAssignment",
@@ -505,9 +506,7 @@ class AutomationJob(Base):
 
 class AutomationJobAccount(Base):
     __tablename__ = "automation_job_accounts"
-    __table_args__ = (
-        UniqueConstraint("job_id", "position", name="uq_automation_job_accounts_position"),
-    )
+    __table_args__ = (UniqueConstraint("job_id", "position", name="uq_automation_job_accounts_position"),)
 
     job_id: Mapped[str] = mapped_column(
         String,
