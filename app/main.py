@@ -38,6 +38,7 @@ from app.core.resilience.memory_monitor import configure as configure_memory_mon
 from app.core.usage.refresh_scheduler import build_usage_refresh_scheduler
 from app.db.session import SessionLocal, close_db, init_background_db, init_db
 from app.modules.accounts import api as accounts_api
+from app.modules.accounts.auth_health_scheduler import build_account_auth_health_scheduler
 from app.modules.api_keys import api as api_keys_api
 from app.modules.audit import api as audit_api
 from app.modules.automations import api as automations_api
@@ -60,8 +61,8 @@ from app.modules.proxy.ring_membership import (
 from app.modules.request_logs import api as request_logs_api
 from app.modules.settings import api as settings_api
 from app.modules.sticky_sessions import api as sticky_sessions_api
-from app.modules.system_health import api as system_health_api
 from app.modules.sticky_sessions.cleanup_scheduler import build_sticky_session_cleanup_scheduler
+from app.modules.system_health import api as system_health_api
 from app.modules.usage import api as usage_api
 from app.modules.usage.additional_quota_keys import reload_additional_quota_registry
 
@@ -128,10 +129,12 @@ async def lifespan(app: FastAPI):
     if bridge_durable_schema_ready:
         startup_module.mark_bridge_durable_schema_ready()
     usage_scheduler = build_usage_refresh_scheduler()
+    account_auth_health_scheduler = build_account_auth_health_scheduler()
     model_scheduler = build_model_refresh_scheduler()
     sticky_session_cleanup_scheduler = build_sticky_session_cleanup_scheduler()
     automations_scheduler = build_automations_scheduler()
     await usage_scheduler.start()
+    await account_auth_health_scheduler.start()
     await model_scheduler.start()
     await sticky_session_cleanup_scheduler.start()
     await automations_scheduler.start()
@@ -292,6 +295,7 @@ async def lifespan(app: FastAPI):
         await automations_scheduler.stop()
         await sticky_session_cleanup_scheduler.stop()
         await model_scheduler.stop()
+        await account_auth_health_scheduler.stop()
         await usage_scheduler.stop()
         try:
             await close_http_client()

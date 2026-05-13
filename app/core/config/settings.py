@@ -172,6 +172,9 @@ class Settings(BaseSettings):
     token_refresh_timeout_seconds: float = 8.0
     transcription_request_budget_seconds: float = Field(default=120.0, gt=0)
     token_refresh_interval_days: int = 8
+    account_health_check_enabled: bool = True
+    account_health_check_interval_seconds: int = Field(default=300, gt=0)
+    account_health_check_refresh_leeway_seconds: int = Field(default=300, ge=0)
     usage_fetch_timeout_seconds: float = 10.0
     usage_fetch_max_retries: int = 2
     usage_refresh_enabled: bool = True
