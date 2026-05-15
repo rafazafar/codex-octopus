@@ -10,6 +10,7 @@ from app.modules.shared.schemas import DashboardModel
 
 AccountRoutingTier = Literal["gold", "silver", "bronze"]
 AccountRoutingTierUpdateValue = Literal["gold", "silver", "bronze", "default"]
+AccountProviderValue = Literal["openai", "kiro"]
 
 
 class UsageTrendPoint(DashboardModel):
@@ -81,6 +82,7 @@ class AccountSummary(DashboardModel):
     deactivation_reason: str | None = None
     auth: AccountAuthStatus | None = None
     routing_tier: AccountRoutingTier | None = None
+    provider: AccountProviderValue = "openai"
 
 
 class AccountsResponse(DashboardModel):

@@ -12,6 +12,7 @@ from app.db.models import Account, UsageHistory
 from app.modules.accounts.schemas import (
     AccountAdditionalQuota,
     AccountAuthStatus,
+    AccountProviderValue,
     AccountRequestUsage,
     AccountRoutingTier,
     AccountSummary,
@@ -119,7 +120,13 @@ def _account_to_summary(
         deactivation_reason=account.deactivation_reason,
         auth=auth_status,
         routing_tier=_account_routing_tier(account.routing_tier),
+        provider=_account_provider(account),
     )
+
+
+def _account_provider(account: Account) -> AccountProviderValue:
+    value = getattr(account.provider, "value", account.provider)
+    return "kiro" if value == "kiro" else "openai"
 
 
 def _account_routing_tier(value: str | None) -> AccountRoutingTier | None:

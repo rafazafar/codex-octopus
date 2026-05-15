@@ -43,6 +43,11 @@ class AccountStatus(str, Enum):
     DEACTIVATED = "deactivated"
 
 
+
+class AccountProvider(str, Enum):
+    OPENAI = "openai"
+    KIRO = "kiro"
+
 class StickySessionKind(str, Enum):
     CODEX_SESSION = "codex_session"
     STICKY_THREAD = "sticky_thread"
@@ -78,6 +83,25 @@ class Account(Base):
     reset_at: Mapped[int | None] = mapped_column(Integer, nullable=True)
     blocked_at: Mapped[int | None] = mapped_column(Integer, nullable=True)
     routing_tier: Mapped[str | None] = mapped_column(String, nullable=True)
+    provider: Mapped[AccountProvider] = mapped_column(
+        SqlEnum(
+            AccountProvider,
+            name="account_provider",
+            validate_strings=True,
+            values_callable=_enum_values,
+        ),
+        default=AccountProvider.OPENAI,
+        server_default=text("'openai'"),
+        nullable=False,
+    )
+    kiro_auth_method: Mapped[str | None] = mapped_column(String, nullable=True)
+    kiro_client_id_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    kiro_client_secret_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    kiro_region: Mapped[str | None] = mapped_column(String, nullable=True)
+    kiro_expires_at: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    kiro_machine_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    kiro_profile_arn: Mapped[str | None] = mapped_column(String, nullable=True)
+    kiro_provider: Mapped[str | None] = mapped_column(String, nullable=True)
 
     api_key_assignments: Mapped[list["ApiKeyAccountAssignment"]] = relationship(
         "ApiKeyAccountAssignment",

@@ -16,6 +16,22 @@ def _encode_jwt(payload: dict) -> str:
     return f"header.{body}.sig"
 
 
+def _make_auth_json(raw_account_id: str, email: str) -> dict:
+    payload = {
+        "email": email,
+        "chatgpt_account_id": raw_account_id,
+        "https://api.openai.com/auth": {"chatgpt_plan_type": "plus"},
+    }
+    return {
+        "tokens": {
+            "idToken": _encode_jwt(payload),
+            "accessToken": "access",
+            "refreshToken": "refresh",
+            "accountId": raw_account_id,
+        },
+    }
+
+
 @pytest.mark.asyncio
 async def test_import_and_list_accounts(async_client):
     email = "tester@example.com"
@@ -207,3 +223,18 @@ async def test_delete_missing_account_returns_404(async_client):
     assert response.status_code == 404
     payload = response.json()
     assert payload["error"]["code"] == "account_not_found"
+
+
+@pytest.mark.asyncio
+async def test_list_accounts_includes_openai_provider(async_client):
+    auth_json = _make_auth_json("acc_provider_list", "provider-list@example.com")
+    await async_client.post(
+        "/api/accounts/import",
+        files={"auth_json": ("auth.json", json.dumps(auth_json), "application/json")},
+    )
+
+    response = await async_client.get("/api/accounts")
+
+    assert response.status_code == 200
+    row = next(item for item in response.json()["accounts"] if item["email"] == "provider-list@example.com")
+    assert row["provider"] == "openai"

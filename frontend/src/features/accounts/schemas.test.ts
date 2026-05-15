@@ -107,3 +107,18 @@ describe("ImportStateSchema", () => {
     ).toBe(true);
   });
 });
+
+describe("AccountProviderSchema", () => {
+  it("parses account provider labels", () => {
+    const parsed = AccountSummarySchema.parse({
+      accountId: "acc_provider",
+      email: "provider@example.com",
+      displayName: "provider@example.com",
+      planType: "plus",
+      status: "active",
+      provider: "kiro",
+    });
+
+    expect(parsed.provider).toBe("kiro");
+  });
+});
