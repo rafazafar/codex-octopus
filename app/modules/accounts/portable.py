@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from enum import Enum
+from typing import Literal
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, TypeAdapter
 
@@ -15,18 +16,32 @@ class PortableImportFormat(str, Enum):
     PORTABLE_JSON = "portable_json"
 
 
+class PortableAccountProvider(str, Enum):
+    OPENAI = "openai"
+    KIRO = "kiro"
+
+
 class PortableAccountRecord(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
     source_id: str | None = None
     email: str
     plan_type: str
     raw_account_id: str | None = None
-    id_token: str
+    id_token: str = ""
     access_token: str
     refresh_token: str
     last_refresh_at: datetime | None = None
     created_at: datetime | None = None
+    provider: PortableAccountProvider = PortableAccountProvider.OPENAI
+    kiro_auth_method: str | None = None
+    kiro_client_id: str | None = None
+    kiro_client_secret: str | None = None
+    kiro_region: str | None = None
+    kiro_expires_at: int | None = None
+    kiro_machine_id: str | None = None
+    kiro_profile_arn: str | None = None
+    kiro_provider: str | None = None
 
 
 class PortableAccountBatch(BaseModel):
@@ -34,6 +49,23 @@ class PortableAccountBatch(BaseModel):
 
     format: PortableImportFormat
     accounts: list[PortableAccountRecord]
+
+
+class KiroAccountImport(BaseModel):
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
+    provider: Literal["kiro"]
+    email: str = DEFAULT_EMAIL
+    access_token: str = Field(validation_alias=AliasChoices("access_token", "accessToken"))
+    refresh_token: str = Field(validation_alias=AliasChoices("refresh_token", "refreshToken"))
+    auth_method: str = Field(validation_alias=AliasChoices("auth_method", "authMethod"))
+    client_id: str | None = Field(default=None, validation_alias=AliasChoices("client_id", "clientId"))
+    client_secret: str | None = Field(default=None, validation_alias=AliasChoices("client_secret", "clientSecret"))
+    region: str | None = "us-east-1"
+    expires_at: int | None = Field(default=None, validation_alias=AliasChoices("expires_at", "expiresAt"))
+    machine_id: str | None = Field(default=None, validation_alias=AliasChoices("machine_id", "machineId"))
+    profile_arn: str | None = Field(default=None, validation_alias=AliasChoices("profile_arn", "profileArn"))
+    kiro_provider: str | None = Field(default=None, validation_alias=AliasChoices("kiro_provider", "kiroProvider"))
 
 
 class PortableExternalTokens(BaseModel):
@@ -98,6 +130,30 @@ _PORTABLE_EXTERNAL_IMPORTS = TypeAdapter(list[PortableExternalAccountImport])
 def parse_portable_account_batch(raw: bytes) -> PortableAccountBatch:
     data = json.loads(raw)
     if isinstance(data, dict):
+        if data.get("provider") == "kiro":
+            account = KiroAccountImport.model_validate(data)
+            return PortableAccountBatch(
+                format=PortableImportFormat.AUTH_JSON,
+                accounts=[
+                    PortableAccountRecord(
+                        provider=PortableAccountProvider.KIRO,
+                        email=account.email,
+                        plan_type="kiro",
+                        raw_account_id=None,
+                        id_token="",
+                        access_token=account.access_token,
+                        refresh_token=account.refresh_token,
+                        kiro_auth_method=account.auth_method,
+                        kiro_client_id=account.client_id,
+                        kiro_client_secret=account.client_secret,
+                        kiro_region=account.region or "us-east-1",
+                        kiro_expires_at=account.expires_at,
+                        kiro_machine_id=account.machine_id,
+                        kiro_profile_arn=account.profile_arn,
+                        kiro_provider=account.kiro_provider,
+                    )
+                ],
+            )
         if "tokens" in data:
             return PortableAccountBatch(
                 format=PortableImportFormat.AUTH_JSON,

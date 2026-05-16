@@ -99,6 +99,7 @@ class ImportedAccountSummary(DashboardModel):
     email: str
     plan_type: str
     status: str
+    provider: AccountProviderValue = "openai"
 
 
 class AccountImportResponse(DashboardModel):

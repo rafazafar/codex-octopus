@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import date, timedelta
+from hashlib import sha256
 from typing import cast
 
 from pydantic import ValidationError
@@ -13,10 +14,11 @@ from app.core.auth.api_key_cache import get_api_key_cache
 from app.core.cache.invalidation import NAMESPACE_API_KEY, get_cache_invalidation_poller
 from app.core.crypto import TokenEncryptor
 from app.core.utils.time import naive_utc_to_epoch, utcnow
-from app.db.models import Account, AccountStatus
+from app.db.models import Account, AccountProvider, AccountStatus
 from app.modules.accounts.mappers import build_account_summaries, build_account_usage_trends
 from app.modules.accounts.portable import (
     PortableAccountBatch,
+    PortableAccountProvider,
     PortableImportFormat,
     build_portable_export_account,
     parse_portable_account_batch,
@@ -30,6 +32,7 @@ from app.modules.accounts.schemas import (
     AccountRequestUsage,
     AccountRoutingTier,
     AccountRoutingTierUpdateValue,
+    AccountProviderValue,
     AccountSummary,
     AccountTrendsResponse,
     ImportedAccountSummary,
@@ -171,6 +174,7 @@ class AccountsService:
                 email=saved.email,
                 plan_type=saved.plan_type,
                 status=saved.status,
+                provider=_account_provider_value(saved),
             )
             for saved in saved_accounts
         ]
@@ -249,7 +253,11 @@ class AccountsService:
             for portable_account in batch.accounts:
                 email = portable_account.email
                 raw_account_id = portable_account.raw_account_id
-                account_id = generate_unique_account_id(raw_account_id, email)
+                is_kiro = portable_account.provider is PortableAccountProvider.KIRO
+                if is_kiro:
+                    account_id = f"kiro_{sha256(email.encode()).hexdigest()[:12]}"
+                else:
+                    account_id = generate_unique_account_id(raw_account_id, email)
                 account = Account(
                     id=account_id,
                     chatgpt_account_id=raw_account_id,
@@ -257,10 +265,27 @@ class AccountsService:
                     plan_type=portable_account.plan_type,
                     access_token_encrypted=self._encryptor.encrypt(portable_account.access_token),
                     refresh_token_encrypted=self._encryptor.encrypt(portable_account.refresh_token),
-                    id_token_encrypted=self._encryptor.encrypt(portable_account.id_token),
+                    id_token_encrypted=self._encryptor.encrypt(portable_account.id_token or ""),
                     last_refresh=portable_account.last_refresh_at or utcnow(),
                     status=AccountStatus.ACTIVE,
                     deactivation_reason=None,
+                    provider=AccountProvider.KIRO if is_kiro else AccountProvider.OPENAI,
+                    kiro_auth_method=portable_account.kiro_auth_method if is_kiro else None,
+                    kiro_client_id_encrypted=(
+                        self._encryptor.encrypt(portable_account.kiro_client_id)
+                        if is_kiro and portable_account.kiro_client_id
+                        else None
+                    ),
+                    kiro_client_secret_encrypted=(
+                        self._encryptor.encrypt(portable_account.kiro_client_secret)
+                        if is_kiro and portable_account.kiro_client_secret
+                        else None
+                    ),
+                    kiro_region=portable_account.kiro_region if is_kiro else None,
+                    kiro_expires_at=portable_account.kiro_expires_at if is_kiro else None,
+                    kiro_machine_id=portable_account.kiro_machine_id if is_kiro else None,
+                    kiro_profile_arn=portable_account.kiro_profile_arn if is_kiro else None,
+                    kiro_provider=portable_account.kiro_provider if is_kiro else None,
                 )
                 saved_accounts.append(await self._repo.upsert(account, commit=False))
         return saved_accounts
@@ -270,3 +295,8 @@ def _response_import_format(format_value: PortableImportFormat) -> AccountImport
     if format_value is PortableImportFormat.PORTABLE_JSON:
         return AccountImportFormat.PORTABLE_JSON
     return AccountImportFormat.AUTH_JSON
+
+
+def _account_provider_value(account: Account) -> AccountProviderValue:
+    value = getattr(account.provider, "value", account.provider)
+    return "kiro" if value == "kiro" else "openai"

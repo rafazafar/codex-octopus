@@ -238,3 +238,31 @@ async def test_list_accounts_includes_openai_provider(async_client):
     assert response.status_code == 200
     row = next(item for item in response.json()["accounts"] if item["email"] == "provider-list@example.com")
     assert row["provider"] == "openai"
+
+
+@pytest.mark.asyncio
+async def test_import_kiro_account_persists_provider_fields(async_client):
+    payload = {
+        "provider": "kiro",
+        "email": "kiro@example.com",
+        "accessToken": "kiro-access",
+        "refreshToken": "kiro-refresh",
+        "authMethod": "idc",
+        "clientId": "client-id",
+        "clientSecret": "client-secret",
+        "region": "us-east-1",
+        "expiresAt": 1790000000,
+        "machineId": "machine-123",
+        "profileArn": "arn:aws:codewhisperer:us-east-1:123:profile/test",
+    }
+
+    response = await async_client.post(
+        "/api/accounts/import",
+        files={"auth_json": ("kiro.json", json.dumps(payload), "application/json")},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["accounts"][0]["provider"] == "kiro"
+    listing = await async_client.get("/api/accounts")
+    row = next(item for item in listing.json()["accounts"] if item["email"] == "kiro@example.com")
+    assert row["provider"] == "kiro"
