@@ -347,3 +347,49 @@ async def test_v1_chat_completions_stream_include_usage(async_client, monkeypatc
     assert all("usage" in chunk for chunk in chunks)
     assert chunks[0]["usage"] is None
     assert chunks[-1]["usage"]["total_tokens"] == 5
+
+
+def _make_kiro_import_payload(email: str) -> dict:
+    return {
+        "provider": "kiro",
+        "email": email,
+        "accessToken": "kiro-access-token",
+        "refreshToken": "kiro-refresh-token",
+        "authMethod": "idc",
+        "clientId": "client-id",
+        "clientSecret": "client-secret",
+        "region": "us-east-1",
+        "machineId": "machine-123",
+    }
+
+
+@pytest.mark.asyncio
+async def test_chat_completions_can_stream_from_kiro_account(async_client, monkeypatch):
+    import app.modules.proxy.service as _proxy_module
+    from app.core.clients.kiro import KiroStreamEvent
+
+    # Import a Kiro account
+    payload = _make_kiro_import_payload("kiro-chat@example.com")
+    resp = await async_client.post(
+        "/api/accounts/import",
+        files={"auth_json": ("kiro.json", json.dumps(payload), "application/json")},
+    )
+    assert resp.status_code == 200
+
+    async def fake_stream_kiro_generation(kiro_payload, credentials, **_kwargs):
+        yield KiroStreamEvent(type="text", text="hello from kiro")
+        yield KiroStreamEvent(type="usage", input_tokens=5, output_tokens=3)
+
+    monkeypatch.setattr(_proxy_module, "stream_kiro_generation", fake_stream_kiro_generation)
+
+    async with async_client.stream(
+        "POST",
+        "/v1/chat/completions",
+        json={"model": "gpt-5.5", "messages": [{"role": "user", "content": "hi"}], "stream": True},
+    ) as resp:
+        assert resp.status_code == 200
+        lines = [line async for line in resp.aiter_lines() if line]
+
+    text = "\n".join(lines)
+    assert "chat.completion.chunk" in text
+    assert "data: [DONE]" in text

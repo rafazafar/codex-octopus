@@ -47,6 +47,13 @@ from app.core.clients.proxy import (
 from app.core.clients.proxy import compact_responses as core_compact_responses
 from app.core.clients.proxy import stream_responses as core_stream_responses
 from app.core.clients.proxy import transcribe_audio as core_transcribe_audio
+from app.core.clients.kiro import (
+    KiroAccountCredentials,
+    KiroStreamEvent,
+    KiroUpstreamError,
+    stream_kiro_generation,
+)
+from app.core.kiro.translator import responses_to_kiro_payload
 from app.core.clients.proxy_websocket import (
     UpstreamResponsesWebSocket,
     UpstreamWebSocketMessage,
@@ -94,6 +101,7 @@ from app.core.utils.sse import format_sse_event, parse_sse_data_json
 from app.core.utils.time import to_utc_naive, utcnow
 from app.db.models import (
     Account,
+    AccountProvider,
     AccountStatus,
     DashboardSettings,
     HttpBridgeSessionState,
@@ -5736,6 +5744,20 @@ class ProxyService:
         upstream_stream_transport: str | None,
         request_transport: str,
     ) -> AsyncIterator[str]:
+        # Kiro accounts use a separate streaming path
+        if _is_kiro_account(account):
+            async for line in self._stream_once_kiro(
+                account,
+                payload,
+                request_id,
+                request_started_at=request_started_at,
+                api_key=api_key,
+                settlement=settlement,
+                request_transport=request_transport,
+            ):
+                yield line
+            return
+
         account_id_value = account.id
         access_token = self._encryptor.decrypt(account.access_token_encrypted)
         account_id = _header_account_id(account.chatgpt_account_id)
@@ -6306,6 +6328,188 @@ class ProxyService:
             code,
             http_status=exc.status_code,
         )
+
+
+    async def _stream_once_kiro(
+        self,
+        account: "Account",
+        payload: "ResponsesRequest",
+        request_id: str,
+        *,
+        request_started_at: float,
+        api_key: "ApiKeyData | None",
+        settlement: "_StreamSettlement",
+        request_transport: str,
+    ) -> "AsyncIterator[str]":
+        """Stream a Responses request through the Kiro upstream adapter."""
+        account_id_value = account.id
+        model = payload.model
+        start = time.monotonic()
+        status = "success"
+        error_code: str | None = None
+        error_message: str | None = None
+        input_tokens: int | None = None
+        output_tokens: int | None = None
+        latency_first_token_ms: int | None = None
+
+        response_id = f"resp_{uuid4().hex}"
+        message_id = f"msg_{uuid4().hex}"
+
+        try:
+            access_token = self._encryptor.decrypt(account.access_token_encrypted)
+            credentials = KiroAccountCredentials(
+                account_id=account_id_value,
+                access_token=access_token,
+                machine_id=account.kiro_machine_id,
+                profile_arn=account.kiro_profile_arn,
+            )
+            kiro_payload = responses_to_kiro_payload(payload)
+
+            yield format_sse_event(
+                {"type": "response.created", "response": {"id": response_id, "status": "in_progress", "model": model}}
+            )
+            yield format_sse_event(
+                {
+                    "type": "response.output_item.added",
+                    "item_id": message_id,
+                    "output_index": 0,
+                    "item": {"id": message_id, "type": "message", "status": "in_progress", "role": "assistant"},
+                }
+            )
+            yield format_sse_event(
+                {
+                    "type": "response.content_part.added",
+                    "item_id": message_id,
+                    "output_index": 0,
+                    "content_index": 0,
+                    "part": {"type": "output_text", "text": ""},
+                }
+            )
+
+            output_text = ""
+            async for event in stream_kiro_generation(kiro_payload, credentials):
+                if event.type == "text" and event.text:
+                    if latency_first_token_ms is None:
+                        latency_first_token_ms = int((time.monotonic() - request_started_at) * 1000)
+                    output_text += event.text
+                    yield format_sse_event(
+                        {
+                            "type": "response.output_text.delta",
+                            "item_id": message_id,
+                            "output_index": 0,
+                            "content_index": 0,
+                            "delta": event.text,
+                        }
+                    )
+                elif event.type == "usage":
+                    if event.input_tokens is not None:
+                        input_tokens = event.input_tokens
+                    if event.output_tokens is not None:
+                        output_tokens = event.output_tokens
+                elif event.type == "error":
+                    status = "error"
+                    error_code = "upstream_error"
+                    error_message = event.error
+
+            yield format_sse_event(
+                {
+                    "type": "response.output_text.done",
+                    "item_id": message_id,
+                    "output_index": 0,
+                    "content_index": 0,
+                    "text": output_text,
+                }
+            )
+            yield format_sse_event(
+                {
+                    "type": "response.content_part.done",
+                    "item_id": message_id,
+                    "output_index": 0,
+                    "content_index": 0,
+                    "part": {"type": "output_text", "text": output_text},
+                }
+            )
+            yield format_sse_event(
+                {
+                    "type": "response.output_item.done",
+                    "item_id": message_id,
+                    "output_index": 0,
+                    "item": {
+                        "id": message_id,
+                        "type": "message",
+                        "status": "completed",
+                        "role": "assistant",
+                        "content": [{"type": "output_text", "text": output_text}],
+                    },
+                }
+            )
+            yield format_sse_event(
+                {
+                    "type": "response.completed",
+                    "response": {
+                        "id": response_id,
+                        "status": "completed",
+                        "model": model,
+                        "output": [
+                            {
+                                "id": message_id,
+                                "type": "message",
+                                "status": "completed",
+                                "role": "assistant",
+                                "content": [{"type": "output_text", "text": output_text}],
+                            }
+                        ],
+                        "usage": {
+                            "input_tokens": input_tokens or 0,
+                            "output_tokens": output_tokens or 0,
+                            "total_tokens": (input_tokens or 0) + (output_tokens or 0),
+                        },
+                    },
+                }
+            )
+        except KiroUpstreamError as exc:
+            status = "error"
+            error_code = exc.code
+            error_message = str(exc)
+            settlement.record_success = False
+            settlement.account_health_error = exc.code in {"auth_error"}
+            raise _RetryableStreamError(
+                exc.code,
+                UpstreamError(code=exc.code, message=str(exc), http_status=exc.status),
+            )
+        except Exception as exc:
+            status = "error"
+            error_code = "upstream_error"
+            error_message = str(exc)
+            settlement.record_success = False
+            raise
+        finally:
+            settlement.status = status
+            settlement.model = model
+            settlement.input_tokens = input_tokens
+            settlement.output_tokens = output_tokens
+            settlement.error_code = error_code
+            settlement.error_message = error_message
+            await self._write_request_log(
+                account_id=account_id_value,
+                api_key=api_key,
+                request_id=request_id,
+                model=model,
+                latency_ms=int((time.monotonic() - start) * 1000),
+                status=status,
+                error_code=error_code,
+                error_message=error_message,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                cached_input_tokens=None,
+                reasoning_tokens=None,
+                reasoning_effort=None,
+                transport=request_transport,
+                service_tier=None,
+                requested_service_tier=payload.service_tier,
+                actual_service_tier=None,
+                latency_first_token_ms=latency_first_token_ms,
+            )
 
     async def _handle_stream_error(
         self,
@@ -8358,3 +8562,9 @@ def _normalize_service_tier_value(value: JsonValue) -> str | None:
     if stripped.lower() == "fast":
         return "priority"
     return stripped
+
+
+def _is_kiro_account(account: Account) -> bool:
+    """Return True if the account uses the Kiro provider."""
+    value = getattr(account.provider, "value", account.provider)
+    return value == "kiro"
