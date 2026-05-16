@@ -382,3 +382,37 @@ async def test_transcription_routing_ignores_model_registry_filter(async_client,
     )
     assert response.status_code == 200
     assert response.json()["text"] == "registry bypass works"
+
+
+def _make_kiro_import_payload(email: str) -> dict:
+    return {
+        "provider": "kiro",
+        "email": email,
+        "accessToken": "kiro-access-token",
+        "refreshToken": "kiro-refresh-token",
+        "authMethod": "idc",
+        "clientId": "client-id",
+        "clientSecret": "client-secret",
+        "region": "us-east-1",
+        "machineId": "machine-123",
+    }
+
+
+@pytest.mark.asyncio
+async def test_transcription_does_not_select_kiro_account(async_client):
+    """When only a Kiro account is available, transcription should return no_compatible_accounts."""
+    payload = _make_kiro_import_payload("kiro-transcribe@example.com")
+    resp = await async_client.post(
+        "/api/accounts/import",
+        files={"auth_json": ("kiro.json", json.dumps(payload), "application/json")},
+    )
+    assert resp.status_code == 200
+
+    response = await async_client.post(
+        "/v1/audio/transcriptions",
+        files={"file": ("audio.wav", b"RIFF....WAVEfmt ", "audio/wav")},
+        data={"model": "gpt-4o-transcribe"},
+    )
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] in {"no_compatible_accounts", "no_accounts"}

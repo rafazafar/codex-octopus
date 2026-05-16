@@ -933,6 +933,15 @@ class ProxyService:
                         openai_error(log_error_code, log_error_message),
                     )
                 account_id_value = account.id
+                if _is_kiro_account(account):
+                    # Kiro accounts do not support encrypted reasoning state.
+                    # Return a minimal compatible compact response.
+                    log_status = "success"
+                    return CompactResponsePayload(
+                        object="response.compact",
+                        id=None,
+                        status="completed",
+                    )
                 remaining_budget = _remaining_budget_seconds(deadline)
                 if remaining_budget <= 0:
                     logger.warning("Compact request budget exhausted before freshness check request_id=%s", request_id)
@@ -1196,6 +1205,13 @@ class ProxyService:
             if not account:
                 log_error_code = selection.error_code or "no_accounts"
                 log_error_message = selection.error_message or "No active accounts available"
+                raise ProxyResponseError(
+                    503,
+                    openai_error(log_error_code, log_error_message),
+                )
+            if _is_kiro_account(account):
+                log_error_code = "no_compatible_accounts"
+                log_error_message = "No OpenAI accounts available for transcription"
                 raise ProxyResponseError(
                     503,
                     openai_error(log_error_code, log_error_message),
@@ -5977,6 +5993,8 @@ class ProxyService:
         service_tier: str | None = None,
         requested_service_tier: str | None = None,
         actual_service_tier: str | None = None,
+        provider: str | None = None,
+        upstream_model: str | None = None,
     ) -> None:
         with anyio.CancelScope(shield=True):
             try:
@@ -6000,6 +6018,8 @@ class ProxyService:
                         status=status,
                         error_code=error_code,
                         error_message=error_message,
+                        provider=provider,
+                        upstream_model=upstream_model,
                     )
             except Exception:
                 logger.warning(
@@ -6509,6 +6529,8 @@ class ProxyService:
                 requested_service_tier=payload.service_tier,
                 actual_service_tier=None,
                 latency_first_token_ms=latency_first_token_ms,
+                provider="kiro",
+                upstream_model="claude-sonnet-4.6",
             )
 
     async def _handle_stream_error(

@@ -167,6 +167,8 @@ class RequestLog(Base):
     status: Mapped[str] = mapped_column(String, nullable=False)
     error_code: Mapped[str | None] = mapped_column(String, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    provider: Mapped[str | None] = mapped_column(String, nullable=True)
+    upstream_model: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
 class AuditLog(Base):
