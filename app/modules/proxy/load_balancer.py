@@ -174,7 +174,6 @@ class LoadBalancer:
                     states,
                     prefer_earlier_reset=prefer_earlier_reset_accounts,
                     routing_strategy=routing_strategy,
-                    routing_tier_weights=_routing_tier_weights(),
                 )
 
                 selected_account_map = account_map
@@ -650,7 +649,6 @@ class LoadBalancer:
                 states,
                 prefer_earlier_reset=prefer_earlier_reset_accounts,
                 routing_strategy=routing_strategy,
-                routing_tier_weights=_routing_tier_weights(),
             )
         if sticky_kind is None:
             raise ValueError("sticky_kind is required when sticky_key is provided")
@@ -692,7 +690,6 @@ class LoadBalancer:
                         [pinned],
                         prefer_earlier_reset=prefer_earlier_reset_accounts,
                         routing_strategy=routing_strategy,
-                        routing_tier_weights=_routing_tier_weights(),
                         allow_backoff_fallback=False,
                     )
                     if pinned_result.account is not None:
@@ -710,7 +707,6 @@ class LoadBalancer:
                             states,
                             prefer_earlier_reset=prefer_earlier_reset_accounts,
                             routing_strategy=routing_strategy,
-                            routing_tier_weights=_routing_tier_weights(),
                             deterministic_probe=True,
                         )
                         pool_also_exhausted = pool_best.account is not None and (
@@ -725,7 +721,6 @@ class LoadBalancer:
                                 [pinned],
                                 prefer_earlier_reset=prefer_earlier_reset_accounts,
                                 routing_strategy=routing_strategy,
-                                routing_tier_weights=_routing_tier_weights(),
                                 allow_backoff_fallback=False,
                             )
                             if pinned_result.account is not None:
@@ -750,7 +745,6 @@ class LoadBalancer:
                         now=time.time() + _STICKY_GRACE_PERIOD_SECONDS,
                         prefer_earlier_reset=prefer_earlier_reset_accounts,
                         routing_strategy=routing_strategy,
-                        routing_tier_weights=_routing_tier_weights(),
                         allow_backoff_fallback=False,
                     )
                     if grace_result.account is not None:
@@ -779,7 +773,6 @@ class LoadBalancer:
             states,
             prefer_earlier_reset=prefer_earlier_reset_accounts,
             routing_strategy=routing_strategy,
-            routing_tier_weights=_routing_tier_weights(),
         )
         if persist_fallback and chosen.account is not None and chosen.account.account_id in account_map:
             await sticky_repo.upsert(sticky_key, chosen.account.account_id, kind=sticky_kind)
@@ -865,7 +858,6 @@ class LoadBalancer:
             deactivation_reason=account.deactivation_reason,
             plan_type=account.plan_type,
             capacity_credits=usage_core.capacity_for_plan(account.plan_type, "secondary"),
-            routing_tier=account.routing_tier,
         )
 
     def _sync_runtime_state(
@@ -1151,12 +1143,7 @@ def _state_from_account(
         plan_type=account.plan_type,
         capacity_credits=usage_core.capacity_for_plan(account.plan_type, "secondary"),
         health_tier=new_tier,
-        routing_tier=account.routing_tier,
     )
-
-
-def _routing_tier_weights() -> dict[str, float]:
-    return get_settings().account_routing_tier_weights
 
 
 def _usage_entry_is_recent_enough(recorded_at: datetime | None) -> bool:

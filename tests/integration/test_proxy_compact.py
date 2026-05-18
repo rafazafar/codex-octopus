@@ -442,3 +442,38 @@ async def test_proxy_compact_output_round_trips_into_followup_responses_without_
 
     assert response.status_code == 200
     assert seen_inputs == [compact_window["output"]]
+
+
+def _make_kiro_import_payload(email: str) -> dict:
+    return {
+        "provider": "kiro",
+        "email": email,
+        "accessToken": "kiro-access-token",
+        "refreshToken": "kiro-refresh-token",
+        "authMethod": "idc",
+        "clientId": "client-id",
+        "clientSecret": "client-secret",
+        "region": "us-east-1",
+        "machineId": "machine-123",
+    }
+
+
+@pytest.mark.asyncio
+async def test_kiro_compact_returns_compatible_response(async_client):
+    """Kiro accounts should return a minimal compact response without encrypted_content."""
+    payload = _make_kiro_import_payload("kiro-compact@example.com")
+    resp = await async_client.post(
+        "/api/accounts/import",
+        files={"auth_json": ("kiro.json", json.dumps(payload), "application/json")},
+    )
+    assert resp.status_code == 200
+
+    response = await async_client.post(
+        "/backend-api/codex/responses/compact",
+        json={"model": "gpt-5.5", "input": "long context", "instructions": ""},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "encrypted_content" not in body
+    assert body.get("object", "").startswith("response.compact")

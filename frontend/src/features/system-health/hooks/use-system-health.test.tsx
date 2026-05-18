@@ -39,20 +39,23 @@ describe("useSystemHealth", () => {
     expect(refetchInterval).toBe(30_000);
   });
 
-  it("exposes critical alerts from the endpoint", async () => {
+  it("exposes critical account-pool alerts from the endpoint", async () => {
     server.use(
       http.get("/api/system-health", () =>
         HttpResponse.json({
           status: "critical",
           updatedAt: "2026-01-01T00:00:00Z",
           alert: {
-            code: "capacity_exhaustion_risk",
+            code: "account_pool_collapse",
             severity: "critical",
-            title: "Capacity exhaustion is imminent",
-            message: "Remaining system capacity is projected to exhaust soon.",
-            href: "/dashboard",
+            title: "Account pool collapse",
+            message: "4 of 5 accounts are unavailable. Routing capacity is at risk.",
+            href: "/accounts",
             metrics: {
-              riskLevel: "critical",
+              totalAccounts: 5,
+              activeAccounts: 1,
+              unavailableAccounts: 4,
+              unavailableRatio: 0.8,
             },
           },
         }),
@@ -65,6 +68,6 @@ describe("useSystemHealth", () => {
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data?.alert?.code).toBe("capacity_exhaustion_risk");
+    expect(result.current.data?.alert?.code).toBe("account_pool_collapse");
   });
 });

@@ -888,3 +888,55 @@ async def test_v1_responses_normalizes_tool_messages(async_client, monkeypatch):
         {"type": "function_call_output", "call_id": "call_1", "output": '{"ok":true}'},
         {"role": "user", "content": [{"type": "input_text", "text": "continue"}]},
     ]
+
+
+def _make_kiro_import_payload(email: str) -> dict:
+    return {
+        "provider": "kiro",
+        "email": email,
+        "accessToken": "kiro-access-token",
+        "refreshToken": "kiro-refresh-token",
+        "authMethod": "idc",
+        "clientId": "client-id",
+        "clientSecret": "client-secret",
+        "region": "us-east-1",
+        "machineId": "machine-123",
+    }
+
+
+@pytest.mark.asyncio
+async def test_v1_responses_can_stream_from_kiro_account(async_client, monkeypatch):
+    import app.modules.proxy.service as _proxy_module
+    from app.core.clients.kiro import KiroStreamEvent
+
+    # Import a Kiro account
+    payload = _make_kiro_import_payload("kiro-stream@example.com")
+    resp = await async_client.post(
+        "/api/accounts/import",
+        files={"auth_json": ("kiro.json", json.dumps(payload), "application/json")},
+    )
+    assert resp.status_code == 200
+
+    seen_payloads: list[dict] = []
+
+    async def fake_stream_kiro_generation(kiro_payload, credentials, **_kwargs):
+        seen_payloads.append(kiro_payload)
+        yield KiroStreamEvent(type="text", text="hello from kiro")
+        yield KiroStreamEvent(type="usage", input_tokens=3, output_tokens=2)
+
+    monkeypatch.setattr(_proxy_module, "stream_kiro_generation", fake_stream_kiro_generation)
+
+    async with async_client.stream(
+        "POST",
+        "/v1/responses",
+        json={"model": "gpt-5.5", "instructions": "be brief", "input": "hi", "stream": True},
+    ) as resp:
+        assert resp.status_code == 200
+        lines = [line async for line in resp.aiter_lines() if line]
+
+    text = "\n".join(lines)
+    assert "response.output_text.delta" in text
+    assert "hello from kiro" in text
+    assert len(seen_payloads) == 1
+    current = seen_payloads[0]["conversationState"]["currentMessage"]["userInputMessage"]
+    assert current["modelId"] == "claude-sonnet-4.6"

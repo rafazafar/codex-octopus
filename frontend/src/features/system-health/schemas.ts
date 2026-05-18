@@ -7,8 +7,6 @@ export const SystemHealthMetricsSchema = z.object({
   unavailableRatio: z.number().nonnegative().nullable().optional(),
   requestCount: z.number().int().nonnegative().nullable().optional(),
   rateLimitRatio: z.number().nonnegative().nullable().optional(),
-  projectedExhaustionAt: z.string().datetime({ offset: true }).nullable().optional(),
-  riskLevel: z.enum(["warning", "danger", "critical"]).nullable().optional(),
 });
 
 export const SystemHealthAlertSchema = z.object({

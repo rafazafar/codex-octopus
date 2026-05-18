@@ -42,14 +42,13 @@ describe("AccountSummarySchema", () => {
           state: "parsed",
         },
       },
-      routingTier: "gold",
     });
 
     expect(parsed.accountId).toBe("acc-1");
     expect(parsed.usage?.primaryRemainingPercent).toBe(85);
     expect(parsed.windowMinutesSecondary).toBe(10080);
     expect(parsed.requestUsage?.totalCostUsd).toBe(0.02);
-    expect(parsed.routingTier).toBe("gold");
+    expect("routingTier" in parsed).toBe(false);
   });
 });
 
@@ -105,5 +104,20 @@ describe("ImportStateSchema", () => {
         message: "Imported 1 account",
       }).success,
     ).toBe(true);
+  });
+});
+
+describe("AccountProviderSchema", () => {
+  it("parses account provider labels", () => {
+    const parsed = AccountSummarySchema.parse({
+      accountId: "acc_provider",
+      email: "provider@example.com",
+      displayName: "provider@example.com",
+      planType: "plus",
+      status: "active",
+      provider: "kiro",
+    });
+
+    expect(parsed.provider).toBe("kiro");
   });
 });

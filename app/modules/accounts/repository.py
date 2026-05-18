@@ -170,13 +170,6 @@ class AccountsRepository:
         await self._session.commit()
         return result.scalar_one_or_none() is not None
 
-    async def update_routing_tier(self, account_id: str, routing_tier: str | None) -> bool:
-        result = await self._session.execute(
-            update(Account).where(Account.id == account_id).values(routing_tier=routing_tier).returning(Account.id)
-        )
-        await self._session.commit()
-        return result.scalar_one_or_none() is not None
-
     async def update_status_if_current(
         self,
         account_id: str,

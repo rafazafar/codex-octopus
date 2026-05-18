@@ -49,9 +49,10 @@ describe("RecentRequestsTable", () => {
              accountId: "acc-primary",
              email: "primary@example.com",
              displayName: "Primary Account",
-             planType: "plus",
-             status: "active",
-             additionalQuotas: [],
+              planType: "plus",
+              status: "active",
+              provider: "openai",
+              additionalQuotas: [],
            },
          ]}
         requests={[

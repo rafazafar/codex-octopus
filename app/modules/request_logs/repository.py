@@ -181,6 +181,8 @@ class RequestLogsRepository:
         actual_service_tier: str | None = None,
         transport: str | None = None,
         api_key_id: str | None = None,
+        provider: str | None = None,
+        upstream_model: str | None = None,
     ) -> RequestLog:
         resolved_request_id = ensure_request_id(request_id)
         log = RequestLog(
@@ -204,6 +206,8 @@ class RequestLogsRepository:
             error_code=error_code,
             error_message=error_message,
             requested_at=requested_at or utcnow(),
+            provider=provider,
+            upstream_model=upstream_model,
         )
         log.cost_usd = calculated_cost_from_log(typing_cast(RequestLogLike, log))
         self._session.add(log)

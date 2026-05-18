@@ -1,10 +1,8 @@
-import { del, download, get, post, put } from "@/lib/api-client";
+import { del, download, get, post } from "@/lib/api-client";
 
 import {
   AccountActionResponseSchema,
   AccountImportResponseSchema,
-  AccountRoutingTierUpdateRequestSchema,
-  AccountRoutingTierUpdateResponseSchema,
   AccountsResponseSchema,
   AccountTrendsResponseSchema,
   ManualOauthCallbackRequestSchema,
@@ -15,7 +13,6 @@ import {
   OauthStartResponseSchema,
   OauthStatusResponseSchema,
   RuntimeConnectAddressResponseSchema,
-  type AccountRoutingTierUpdateRequest,
 } from "@/features/accounts/schemas";
 
 const ACCOUNTS_BASE_PATH = "/api/accounts";
@@ -57,19 +54,6 @@ export function reactivateAccount(accountId: string) {
   return post(
     `${ACCOUNTS_BASE_PATH}/${encodeURIComponent(accountId)}/reactivate`,
     AccountActionResponseSchema,
-  );
-}
-
-export function updateAccountRoutingTier(params: {
-  accountId: string;
-  routingTier: AccountRoutingTierUpdateRequest["routingTier"];
-}) {
-  const { accountId, ...payload } = params;
-  const validated = AccountRoutingTierUpdateRequestSchema.parse(payload);
-  return put(
-    `${ACCOUNTS_BASE_PATH}/${encodeURIComponent(accountId)}/routing-tier`,
-    AccountRoutingTierUpdateResponseSchema,
-    { body: validated },
   );
 }
 

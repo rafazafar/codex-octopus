@@ -21,7 +21,7 @@
 
 ## 4. Tests
 - [ ] 4.1 Add backend integration coverage for `GET /api/system-health`
-- [ ] 4.2 Add backend rule tests for account-pool, depletion, and rate-limit alerts
+- [ ] 4.2 Add backend rule tests for account-pool and rate-limit alerts
 - [ ] 4.3 Add frontend MSW handlers/factories for system-health responses
 - [ ] 4.4 Add frontend hook tests for polling and healthy/error states
 - [ ] 4.5 Add frontend layout/component tests for protected-route rendering

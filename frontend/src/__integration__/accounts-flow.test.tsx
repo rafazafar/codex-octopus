@@ -18,11 +18,7 @@ describe("accounts flow integration", () => {
 
     await user.click(screen.getByText("secondary@example.com"));
     expect(await screen.findByText("Token Status")).toBeInTheDocument();
-
-    await user.selectOptions(screen.getByRole("combobox", { name: "Routing tier" }), "gold");
-    await waitFor(() => {
-      expect(screen.getByRole("combobox", { name: "Routing tier" })).toHaveValue("gold");
-    });
+    expect(screen.queryByRole("combobox", { name: "Routing tier" })).not.toBeInTheDocument();
 
     const resumeButton = screen.queryByRole("button", { name: "Resume" });
     if (resumeButton) {

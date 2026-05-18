@@ -16,6 +16,22 @@ def _encode_jwt(payload: dict) -> str:
     return f"header.{body}.sig"
 
 
+def _make_auth_json(raw_account_id: str, email: str) -> dict:
+    payload = {
+        "email": email,
+        "chatgpt_account_id": raw_account_id,
+        "https://api.openai.com/auth": {"chatgpt_plan_type": "plus"},
+    }
+    return {
+        "tokens": {
+            "idToken": _encode_jwt(payload),
+            "accessToken": "access",
+            "refreshToken": "refresh",
+            "accountId": raw_account_id,
+        },
+    }
+
+
 @pytest.mark.asyncio
 async def test_import_and_list_accounts(async_client):
     email = "tester@example.com"
@@ -104,7 +120,7 @@ async def test_pause_account(async_client):
 
 
 @pytest.mark.asyncio
-async def test_update_account_routing_tier_persists_and_clears(async_client):
+async def test_list_accounts_omits_removed_routing_tier(async_client):
     email = "tier-api@example.com"
     raw_account_id = "acc_tier_api"
     payload = {
@@ -121,84 +137,13 @@ async def test_update_account_routing_tier_persists_and_clears(async_client):
         },
     }
 
-    expected_account_id = generate_unique_account_id(raw_account_id, email)
     files = {"auth_json": ("auth.json", json.dumps(auth_json), "application/json")}
     import_response = await async_client.post("/api/accounts/import", files=files)
     assert import_response.status_code == 200
 
     accounts = await async_client.get("/api/accounts")
-    initial = next(account for account in accounts.json()["accounts"] if account["accountId"] == expected_account_id)
-    assert initial["routingTier"] is None
-
-    update_response = await async_client.put(
-        f"/api/accounts/{expected_account_id}/routing-tier",
-        json={"routingTier": "gold"},
-    )
-    assert update_response.status_code == 200
-    assert update_response.json() == {"status": "updated", "routingTier": "gold"}
-
-    accounts = await async_client.get("/api/accounts")
-    updated = next(account for account in accounts.json()["accounts"] if account["accountId"] == expected_account_id)
-    assert updated["routingTier"] == "gold"
-
-    clear_response = await async_client.put(
-        f"/api/accounts/{expected_account_id}/routing-tier",
-        json={"routingTier": None},
-    )
-    assert clear_response.status_code == 200
-    assert clear_response.json() == {"status": "updated", "routingTier": None}
-
-    accounts = await async_client.get("/api/accounts")
-    cleared = next(account for account in accounts.json()["accounts"] if account["accountId"] == expected_account_id)
-    assert cleared["routingTier"] is None
-
-
-@pytest.mark.asyncio
-async def test_update_account_routing_tier_rejects_invalid_value(async_client):
-    email = "tier-invalid@example.com"
-    raw_account_id = "acc_tier_invalid"
-    payload = {
-        "email": email,
-        "chatgpt_account_id": raw_account_id,
-        "https://api.openai.com/auth": {"chatgpt_plan_type": "plus"},
-    }
-    auth_json = {
-        "tokens": {
-            "idToken": _encode_jwt(payload),
-            "accessToken": "access",
-            "refreshToken": "refresh",
-            "accountId": raw_account_id,
-        },
-    }
-
-    expected_account_id = generate_unique_account_id(raw_account_id, email)
-    files = {"auth_json": ("auth.json", json.dumps(auth_json), "application/json")}
-    import_response = await async_client.post("/api/accounts/import", files=files)
-    assert import_response.status_code == 200
-
-    update_response = await async_client.put(
-        f"/api/accounts/{expected_account_id}/routing-tier",
-        json={"routingTier": "silver"},
-    )
-    assert update_response.status_code == 200
-
-    invalid_response = await async_client.put(
-        f"/api/accounts/{expected_account_id}/routing-tier",
-        json={"routingTier": "platinum"},
-    )
-    assert invalid_response.status_code == 422
-
-    accounts = await async_client.get("/api/accounts")
-    updated = next(account for account in accounts.json()["accounts"] if account["accountId"] == expected_account_id)
-    assert updated["routingTier"] == "silver"
-
-
-@pytest.mark.asyncio
-async def test_update_missing_account_routing_tier_returns_404(async_client):
-    response = await async_client.put("/api/accounts/missing/routing-tier", json={"routingTier": "gold"})
-    assert response.status_code == 404
-    payload = response.json()
-    assert payload["error"]["code"] == "account_not_found"
+    row = next(account for account in accounts.json()["accounts"] if account["email"] == email)
+    assert "routingTier" not in row
 
 
 @pytest.mark.asyncio
@@ -207,3 +152,46 @@ async def test_delete_missing_account_returns_404(async_client):
     assert response.status_code == 404
     payload = response.json()
     assert payload["error"]["code"] == "account_not_found"
+
+
+@pytest.mark.asyncio
+async def test_list_accounts_includes_openai_provider(async_client):
+    auth_json = _make_auth_json("acc_provider_list", "provider-list@example.com")
+    await async_client.post(
+        "/api/accounts/import",
+        files={"auth_json": ("auth.json", json.dumps(auth_json), "application/json")},
+    )
+
+    response = await async_client.get("/api/accounts")
+
+    assert response.status_code == 200
+    row = next(item for item in response.json()["accounts"] if item["email"] == "provider-list@example.com")
+    assert row["provider"] == "openai"
+
+
+@pytest.mark.asyncio
+async def test_import_kiro_account_persists_provider_fields(async_client):
+    payload = {
+        "provider": "kiro",
+        "email": "kiro@example.com",
+        "accessToken": "kiro-access",
+        "refreshToken": "kiro-refresh",
+        "authMethod": "idc",
+        "clientId": "client-id",
+        "clientSecret": "client-secret",
+        "region": "us-east-1",
+        "expiresAt": 1790000000,
+        "machineId": "machine-123",
+        "profileArn": "arn:aws:codewhisperer:us-east-1:123:profile/test",
+    }
+
+    response = await async_client.post(
+        "/api/accounts/import",
+        files={"auth_json": ("kiro.json", json.dumps(payload), "application/json")},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["accounts"][0]["provider"] == "kiro"
+    listing = await async_client.get("/api/accounts")
+    row = next(item for item in listing.json()["accounts"] if item["email"] == "kiro@example.com")
+    assert row["provider"] == "kiro"

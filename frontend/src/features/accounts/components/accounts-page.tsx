@@ -29,7 +29,6 @@ export function AccountsPage() {
     pauseMutation,
     resumeMutation,
     deleteMutation,
-    routingTierMutation,
   } = useAccounts();
   const oauth = useOauth();
   const systemHealthQuery = useSystemHealth();
@@ -71,15 +70,13 @@ export function AccountsPage() {
     importMutation.isPending ||
     pauseMutation.isPending ||
     resumeMutation.isPending ||
-    deleteMutation.isPending ||
-    routingTierMutation.isPending;
+    deleteMutation.isPending;
 
   const mutationError =
     getErrorMessageOrNull(importMutation.error) ||
     getErrorMessageOrNull(pauseMutation.error) ||
     getErrorMessageOrNull(resumeMutation.error) ||
-    getErrorMessageOrNull(deleteMutation.error) ||
-    getErrorMessageOrNull(routingTierMutation.error);
+    getErrorMessageOrNull(deleteMutation.error);
   const activeSystemHealthAlert =
     systemHealthQuery.data?.alert && searchParams.get("systemHealth") === systemHealthQuery.data.alert.code
       ? systemHealthQuery.data.alert
@@ -128,9 +125,6 @@ export function AccountsPage() {
             onResume={(accountId) => void resumeMutation.mutateAsync(accountId)}
             onDelete={(accountId) => deleteDialog.show(accountId)}
             onReauth={() => oauthDialog.show()}
-            onRoutingTierChange={(accountId, routingTier) => {
-              void routingTierMutation.mutateAsync({ accountId, routingTier });
-            }}
           />
         </div>
       )}

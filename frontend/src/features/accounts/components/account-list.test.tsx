@@ -19,6 +19,7 @@ describe("AccountList", () => {
             displayName: "Primary",
             planType: "plus",
             status: "active",
+            provider: "openai",
             additionalQuotas: [],
           },
           {
@@ -27,6 +28,7 @@ describe("AccountList", () => {
             displayName: "Secondary",
             planType: "pro",
             status: "paused",
+            provider: "openai",
             additionalQuotas: [],
           },
         ]}
@@ -61,6 +63,7 @@ describe("AccountList", () => {
             displayName: "Primary",
             planType: "plus",
             status: "active",
+            provider: "openai",
             additionalQuotas: [],
           },
         ]}
@@ -86,6 +89,7 @@ describe("AccountList", () => {
             displayName: "Duplicate A",
             planType: "plus",
             status: "active",
+            provider: "openai",
             additionalQuotas: [],
           },
           {
@@ -94,6 +98,7 @@ describe("AccountList", () => {
             displayName: "Duplicate B",
             planType: "plus",
             status: "active",
+            provider: "openai",
             additionalQuotas: [],
           },
           {
@@ -102,6 +107,7 @@ describe("AccountList", () => {
             displayName: "Unique",
             planType: "pro",
             status: "active",
+            provider: "openai",
             additionalQuotas: [],
           },
         ]}
@@ -113,8 +119,8 @@ describe("AccountList", () => {
       />,
     );
 
-    expect(screen.getByText((_content, el) => el?.tagName === "P" && !!el.textContent?.match(/dup@example\.com \| Default bronze \| ID d48f0bfc\.\.\.12b5d5/))).toBeInTheDocument();
-    expect(screen.getByText((_content, el) => el?.tagName === "P" && !!el.textContent?.match(/dup@example\.com \| Default bronze \| ID 7f9de2ad\.\.\.a95cee/))).toBeInTheDocument();
+    expect(screen.getByText((_content, el) => el?.tagName === "P" && !!el.textContent?.match(/dup@example\.com \| ID d48f0bfc\.\.\.12b5d5/))).toBeInTheDocument();
+    expect(screen.getByText((_content, el) => el?.tagName === "P" && !!el.textContent?.match(/dup@example\.com \| ID 7f9de2ad\.\.\.a95cee/))).toBeInTheDocument();
     expect(screen.getByText("unique@example.com")).toBeInTheDocument();
     expect(screen.queryByText((_content, el) => el?.tagName === "P" && !!el.textContent?.match(/unique@example\.com \| ID/))).not.toBeInTheDocument();
   });
@@ -132,6 +138,7 @@ describe("AccountList", () => {
             displayName: "Primary",
             planType: "plus",
             status: "active",
+            provider: "openai",
             additionalQuotas: [],
           },
         ]}

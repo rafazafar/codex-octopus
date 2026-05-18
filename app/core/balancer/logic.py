@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import random
 import time
-from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Iterable, Literal
 
@@ -23,12 +22,6 @@ PERMANENT_FAILURE_CODES = {
 SECONDS_PER_DAY = 60 * 60 * 24
 UNKNOWN_RESET_BUCKET_DAYS = 10_000
 RoutingStrategy = Literal["usage_weighted", "round_robin", "capacity_weighted"]
-RoutingTier = Literal["gold", "silver", "bronze"]
-DEFAULT_ROUTING_TIER_WEIGHTS: dict[RoutingTier, float] = {
-    "gold": 6.0,
-    "silver": 3.0,
-    "bronze": 1.0,
-}
 UNKNOWN_PLAN_FALLBACK = "free"
 CAPACITY_PLAN_ALIASES = {
     "education": "edu",
@@ -69,7 +62,6 @@ class AccountState:
     plan_type: str | None = None
     capacity_credits: float | None = None
     health_tier: int = 0
-    routing_tier: str | None = None
 
 
 @dataclass
@@ -111,7 +103,6 @@ def select_account(
     *,
     prefer_earlier_reset: bool = False,
     routing_strategy: RoutingStrategy = "capacity_weighted",
-    routing_tier_weights: Mapping[str, float] | None = None,
     allow_backoff_fallback: bool = True,
     deterministic_probe: bool = False,
 ) -> SelectionResult:
@@ -249,9 +240,9 @@ def select_account(
             _prefer_earlier_reset_candidates(effective_pool, current) if prefer_earlier_reset else effective_pool
         )
         if deterministic_probe:
-            selected = min(candidate_pool, key=lambda state: _capacity_probe_sort_key(state, routing_tier_weights))
+            selected = min(candidate_pool, key=_capacity_probe_sort_key)
         else:
-            selected = _select_capacity_weighted(candidate_pool, routing_tier_weights=routing_tier_weights)
+            selected = _select_capacity_weighted(candidate_pool)
     else:
         selected = min(effective_pool, key=_reset_first_sort_key if prefer_earlier_reset else _usage_sort_key)
     return SelectionResult(selected, None)
@@ -273,13 +264,10 @@ def _remaining_secondary_credits(state: AccountState) -> float:
     return max(0.0, capacity * (1.0 - min(used_pct, 100.0) / 100.0))
 
 
-def _capacity_probe_sort_key(
-    state: AccountState,
-    routing_tier_weights: Mapping[str, float] | None,
-) -> tuple[float, float, float, float, str]:
+def _capacity_probe_sort_key(state: AccountState) -> tuple[float, float, float, float, str]:
     secondary_used, primary_used, last_selected, account_id = _usage_sort_key(state)
     return (
-        -_weighted_secondary_credits(state, routing_tier_weights),
+        -_remaining_secondary_credits(state),
         secondary_used,
         primary_used,
         last_selected,
@@ -287,39 +275,9 @@ def _capacity_probe_sort_key(
     )
 
 
-def _normalized_routing_tier(tier: str | None) -> RoutingTier:
-    normalized = (tier or "").strip().lower()
-    if normalized in ("gold", "silver", "bronze"):
-        return normalized
-    return "bronze"
-
-
-def _routing_tier_weight(state: AccountState, routing_tier_weights: Mapping[str, float] | None) -> float:
-    tier = _normalized_routing_tier(state.routing_tier)
-    raw_weight = (routing_tier_weights or {}).get(tier, DEFAULT_ROUTING_TIER_WEIGHTS[tier])
-    if isinstance(raw_weight, bool):
-        return DEFAULT_ROUTING_TIER_WEIGHTS[tier]
-    try:
-        weight = float(raw_weight)
-    except (TypeError, ValueError):
-        return DEFAULT_ROUTING_TIER_WEIGHTS[tier]
-    return weight if weight > 0.0 else DEFAULT_ROUTING_TIER_WEIGHTS[tier]
-
-
-def _weighted_secondary_credits(
-    state: AccountState,
-    routing_tier_weights: Mapping[str, float] | None,
-) -> float:
-    return _remaining_secondary_credits(state) * _routing_tier_weight(state, routing_tier_weights)
-
-
-def _select_capacity_weighted(
-    available: list[AccountState],
-    *,
-    routing_tier_weights: Mapping[str, float] | None = None,
-) -> AccountState:
+def _select_capacity_weighted(available: list[AccountState]) -> AccountState:
     """Select an account with probability proportional to remaining secondary credits."""
-    weights = [_weighted_secondary_credits(s, routing_tier_weights) for s in available]
+    weights = [_remaining_secondary_credits(s) for s in available]
     total = sum(weights)
     if total <= 0.0:
         # All accounts exhausted — fall back to deterministic usage-weighted

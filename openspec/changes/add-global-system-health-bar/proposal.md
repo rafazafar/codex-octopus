@@ -1,6 +1,6 @@
 ## Why
 
-Operators need a persistent cross-page warning surface for broad system-health problems such as account-pool collapse, imminent capacity exhaustion, or a sustained rate-limit wave. The current UI only has page-local alerts and a low-noise footer status bar, so major operational risk can be easy to miss unless the operator is already on the right page.
+Operators need a persistent cross-page warning surface for broad system-health problems such as account-pool collapse or a sustained rate-limit wave. The current UI only has page-local alerts and a low-noise footer status bar, so major operational risk can be easy to miss unless the operator is already on the right page.
 
 ## What Changes
 
@@ -8,7 +8,6 @@ Operators need a persistent cross-page warning surface for broad system-health p
 - add a persistent global incident bar on protected pages
 - derive alerts from:
   - account availability
-  - aggregate depletion risk
   - recent normalized request-log status mix
 
 ## Impact

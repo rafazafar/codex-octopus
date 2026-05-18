@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.crypto import TokenEncryptor
 from app.core.utils.time import utcnow
-from app.db.models import Account, AccountStatus
+from app.db.models import Account, AccountProvider, AccountStatus
 from app.db.session import SessionLocal, get_session
 
 pytestmark = pytest.mark.integration
@@ -39,20 +39,6 @@ async def test_duplicate_emails_allowed(db_setup):
 
         rows = await session.execute(select(Account).where(Account.email == "dup@example.com"))
         assert len(list(rows.scalars().all())) == 2
-
-
-@pytest.mark.asyncio
-async def test_account_routing_tier_persists(db_setup):
-    async with SessionLocal() as session:
-        account = _make_account("acc_tier", "tier@example.com", AccountStatus.ACTIVE)
-        account.routing_tier = "gold"
-        session.add(account)
-        await session.commit()
-
-    async with SessionLocal() as session:
-        result = await session.execute(select(Account).where(Account.id == "acc_tier"))
-        saved = result.scalar_one()
-        assert saved.routing_tier == "gold"
 
 
 @pytest.mark.asyncio
@@ -90,3 +76,28 @@ async def test_get_session_rolls_back_on_error(db_setup, monkeypatch):
         assert result.scalar_one_or_none() is None
 
     assert called["rollback"] is True
+
+
+@pytest.mark.asyncio
+async def test_account_provider_defaults_to_openai(db_setup):
+    encryptor = TokenEncryptor()
+    async with SessionLocal() as session:
+        account = Account(
+            id="acc_provider_default",
+            chatgpt_account_id="raw_provider_default",
+            email="provider-default@example.com",
+            plan_type="plus",
+            access_token_encrypted=encryptor.encrypt("access"),
+            refresh_token_encrypted=encryptor.encrypt("refresh"),
+            id_token_encrypted=encryptor.encrypt("id"),
+            last_refresh=utcnow(),
+            status=AccountStatus.ACTIVE,
+        )
+        session.add(account)
+        await session.commit()
+
+    async with SessionLocal() as session:
+        stored = await session.get(Account, "acc_provider_default")
+        assert stored.provider == AccountProvider.OPENAI
+        assert stored.kiro_auth_method is None
+        assert stored.kiro_profile_arn is None

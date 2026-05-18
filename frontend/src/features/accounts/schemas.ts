@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const AccountRoutingTierSchema = z.enum(["gold", "silver", "bronze"]);
+export const AccountProviderSchema = z.enum(["openai", "kiro"]);
 
 export const UsageTrendPointSchema = z.object({
   t: z.string().datetime({ offset: true }),
@@ -64,7 +64,7 @@ export const AccountSummarySchema = z.object({
   requestUsage: AccountRequestUsageSchema.nullable().optional(),
   auth: AccountAuthSchema.nullable().optional(),
   additionalQuotas: z.array(AccountAdditionalQuotaSchema).default([]),
-  routingTier: AccountRoutingTierSchema.nullable().optional(),
+  provider: AccountProviderSchema.default("openai"),
 });
 
 export const AccountTrendsResponseSchema = z.object({
@@ -96,15 +96,6 @@ export const AccountImportResponseSchema = z.object({
 
 export const AccountActionResponseSchema = z.object({
   status: z.string(),
-});
-
-export const AccountRoutingTierUpdateRequestSchema = z.object({
-  routingTier: AccountRoutingTierSchema.nullable(),
-});
-
-export const AccountRoutingTierUpdateResponseSchema = z.object({
-  status: z.string(),
-  routingTier: AccountRoutingTierSchema.nullable(),
 });
 
 export const OauthStartRequestSchema = z.object({
@@ -168,9 +159,7 @@ export const ImportStateSchema = z.object({
 });
 
 export type UsageTrendPoint = z.infer<typeof UsageTrendPointSchema>;
-export type AccountRoutingTier = z.infer<typeof AccountRoutingTierSchema>;
-export type AccountRoutingTierUpdateRequest = z.infer<typeof AccountRoutingTierUpdateRequestSchema>;
-export type AccountRoutingTierUpdateResponse = z.infer<typeof AccountRoutingTierUpdateResponseSchema>;
+export type AccountProvider = z.infer<typeof AccountProviderSchema>;
 export type AccountUsageTrend = z.infer<typeof AccountUsageTrendSchema>;
 export type AccountSummary = z.infer<typeof AccountSummarySchema>;
 export type ImportedAccountSummary = z.infer<typeof ImportedAccountSummarySchema>;
