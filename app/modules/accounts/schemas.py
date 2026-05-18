@@ -8,8 +8,6 @@ from pydantic import Field
 
 from app.modules.shared.schemas import DashboardModel
 
-AccountRoutingTier = Literal["gold", "silver", "bronze"]
-AccountRoutingTierUpdateValue = Literal["gold", "silver", "bronze", "default"]
 AccountProviderValue = Literal["openai", "kiro"]
 
 
@@ -81,7 +79,6 @@ class AccountSummary(DashboardModel):
     additional_quotas: list[AccountAdditionalQuota] = Field(default_factory=list)
     deactivation_reason: str | None = None
     auth: AccountAuthStatus | None = None
-    routing_tier: AccountRoutingTier | None = None
     provider: AccountProviderValue = "openai"
 
 
@@ -118,15 +115,6 @@ class AccountPauseResponse(DashboardModel):
 
 class AccountReactivateResponse(DashboardModel):
     status: str
-
-
-class AccountRoutingTierUpdateRequest(DashboardModel):
-    routing_tier: AccountRoutingTierUpdateValue | None = None
-
-
-class AccountRoutingTierUpdateResponse(DashboardModel):
-    status: str
-    routing_tier: AccountRoutingTier | None = None
 
 
 class AccountDeleteResponse(DashboardModel):

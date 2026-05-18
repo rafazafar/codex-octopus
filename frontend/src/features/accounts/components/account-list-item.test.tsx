@@ -32,11 +32,29 @@ describe("AccountListItem", () => {
     expect(screen.getByTestId("mini-quota-fill")).toHaveStyle({ width: "73%" });
   });
 
-  it("renders effective routing tier in the subtitle", () => {
-    const account = createAccountSummary({ routingTier: "gold" });
+  it("renders plan in the subtitle without routing tiers", () => {
+    const account = createAccountSummary({ planType: "plus" });
 
     render(<AccountListItem account={account} selected={false} onSelect={vi.fn()} />);
 
-    expect(screen.getByText(/Gold/)).toBeInTheDocument();
+    expect(screen.getByText(/Plus/)).toBeInTheDocument();
+    expect(screen.queryByText(/Gold|Silver|Bronze|Default bronze/)).not.toBeInTheDocument();
+  });
+
+  it("shows kiro provider label for kiro accounts", () => {
+    const account = createAccountSummary({ provider: "kiro", email: "kiro@example.com" });
+
+    render(<AccountListItem account={account} selected={false} onSelect={vi.fn()} />);
+
+    expect(screen.getByText("Kiro")).toBeInTheDocument();
+  });
+
+  it("does not show provider label for openai accounts", () => {
+    const account = createAccountSummary({ provider: "openai", email: "openai@example.com" });
+
+    render(<AccountListItem account={account} selected={false} onSelect={vi.fn()} />);
+
+    expect(screen.queryByText("Kiro")).not.toBeInTheDocument();
+    expect(screen.queryByText("OpenAI")).not.toBeInTheDocument();
   });
 });

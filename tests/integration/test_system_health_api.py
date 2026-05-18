@@ -86,7 +86,7 @@ async def test_system_health_returns_critical_when_no_active_accounts_remain(asy
 
 
 @pytest.mark.asyncio
-async def test_system_health_returns_critical_on_capacity_exhaustion_risk(async_client, db_setup):
+async def test_system_health_ignores_depletion_risk(async_client, db_setup):
     now = utcnow().replace(microsecond=0)
     reset_at = int(naive_utc_to_epoch(now + timedelta(minutes=5)))
     async with SessionLocal() as session:
@@ -113,9 +113,8 @@ async def test_system_health_returns_critical_on_capacity_exhaustion_risk(async_
     response = await async_client.get("/api/system-health")
     assert response.status_code == 200
     payload = response.json()
-    assert payload["status"] == "critical"
-    assert payload["alert"]["code"] == "capacity_exhaustion_risk"
-    assert payload["alert"]["metrics"]["riskLevel"] == "critical"
+    assert payload["status"] == "healthy"
+    assert payload["alert"] is None
 
 
 @pytest.mark.asyncio

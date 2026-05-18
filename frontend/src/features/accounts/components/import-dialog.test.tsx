@@ -81,4 +81,38 @@ describe("ImportDialog", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(onOpenOauth).toHaveBeenCalledTimes(1);
   });
+
+  it("submits kiro provider import payload as a JSON file", async () => {
+    const user = userEvent.setup();
+    const importedFiles: File[] = [];
+    const onImport = vi.fn(async (file: File) => {
+      importedFiles.push(file);
+    });
+    const onOpenChange = vi.fn();
+
+    render(
+      <ImportDialog
+        open
+        busy={false}
+        error={null}
+        onOpenChange={onOpenChange}
+        onImport={onImport}
+      />,
+    );
+
+    await user.click(screen.getByRole("tab", { name: "Kiro" }));
+    await user.type(screen.getByLabelText("Access Token"), "kiro-access");
+    await user.type(screen.getByLabelText("Refresh Token"), "kiro-refresh");
+    await user.click(screen.getByRole("button", { name: "Import" }));
+
+    expect(onImport).toHaveBeenCalledTimes(1);
+    const file = importedFiles[0];
+    expect(file.name).toBe("kiro-account.json");
+    const parsed = JSON.parse(await file.text());
+    expect(parsed.provider).toBe("kiro");
+    expect(parsed.accessToken).toBe("kiro-access");
+    expect(parsed.refreshToken).toBe("kiro-refresh");
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
 });

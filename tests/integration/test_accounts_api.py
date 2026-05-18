@@ -120,7 +120,7 @@ async def test_pause_account(async_client):
 
 
 @pytest.mark.asyncio
-async def test_update_account_routing_tier_persists_and_clears(async_client):
+async def test_list_accounts_omits_removed_routing_tier(async_client):
     email = "tier-api@example.com"
     raw_account_id = "acc_tier_api"
     payload = {
@@ -137,84 +137,13 @@ async def test_update_account_routing_tier_persists_and_clears(async_client):
         },
     }
 
-    expected_account_id = generate_unique_account_id(raw_account_id, email)
     files = {"auth_json": ("auth.json", json.dumps(auth_json), "application/json")}
     import_response = await async_client.post("/api/accounts/import", files=files)
     assert import_response.status_code == 200
 
     accounts = await async_client.get("/api/accounts")
-    initial = next(account for account in accounts.json()["accounts"] if account["accountId"] == expected_account_id)
-    assert initial["routingTier"] is None
-
-    update_response = await async_client.put(
-        f"/api/accounts/{expected_account_id}/routing-tier",
-        json={"routingTier": "gold"},
-    )
-    assert update_response.status_code == 200
-    assert update_response.json() == {"status": "updated", "routingTier": "gold"}
-
-    accounts = await async_client.get("/api/accounts")
-    updated = next(account for account in accounts.json()["accounts"] if account["accountId"] == expected_account_id)
-    assert updated["routingTier"] == "gold"
-
-    clear_response = await async_client.put(
-        f"/api/accounts/{expected_account_id}/routing-tier",
-        json={"routingTier": None},
-    )
-    assert clear_response.status_code == 200
-    assert clear_response.json() == {"status": "updated", "routingTier": None}
-
-    accounts = await async_client.get("/api/accounts")
-    cleared = next(account for account in accounts.json()["accounts"] if account["accountId"] == expected_account_id)
-    assert cleared["routingTier"] is None
-
-
-@pytest.mark.asyncio
-async def test_update_account_routing_tier_rejects_invalid_value(async_client):
-    email = "tier-invalid@example.com"
-    raw_account_id = "acc_tier_invalid"
-    payload = {
-        "email": email,
-        "chatgpt_account_id": raw_account_id,
-        "https://api.openai.com/auth": {"chatgpt_plan_type": "plus"},
-    }
-    auth_json = {
-        "tokens": {
-            "idToken": _encode_jwt(payload),
-            "accessToken": "access",
-            "refreshToken": "refresh",
-            "accountId": raw_account_id,
-        },
-    }
-
-    expected_account_id = generate_unique_account_id(raw_account_id, email)
-    files = {"auth_json": ("auth.json", json.dumps(auth_json), "application/json")}
-    import_response = await async_client.post("/api/accounts/import", files=files)
-    assert import_response.status_code == 200
-
-    update_response = await async_client.put(
-        f"/api/accounts/{expected_account_id}/routing-tier",
-        json={"routingTier": "silver"},
-    )
-    assert update_response.status_code == 200
-
-    invalid_response = await async_client.put(
-        f"/api/accounts/{expected_account_id}/routing-tier",
-        json={"routingTier": "platinum"},
-    )
-    assert invalid_response.status_code == 422
-
-    accounts = await async_client.get("/api/accounts")
-    updated = next(account for account in accounts.json()["accounts"] if account["accountId"] == expected_account_id)
-    assert updated["routingTier"] == "silver"
-
-
-@pytest.mark.asyncio
-async def test_update_missing_account_routing_tier_returns_404(async_client):
-    response = await async_client.put("/api/accounts/missing/routing-tier", json={"routingTier": "gold"})
-    assert response.status_code == 404
-    payload = response.json()
-    assert payload["error"]["code"] == "account_not_found"
+    row = next(account for account in accounts.json()["accounts"] if account["email"] == email)
+    assert "routingTier" not in row
 
 
 @pytest.mark.asyncio

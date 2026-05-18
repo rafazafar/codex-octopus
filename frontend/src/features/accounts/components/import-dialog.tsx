@@ -21,7 +21,7 @@ export type ImportDialogProps = {
   onOpenChange: (open: boolean) => void;
   onImport: (file: File) => Promise<void>;
   onOpenOauth?: () => void;
-  initialMode?: "oauth" | "paste" | "file";
+  initialMode?: "oauth" | "paste" | "file" | "kiro";
 };
 
 export function ImportDialog({
@@ -36,11 +36,35 @@ export function ImportDialog({
   const resolvedInitialMode = initialMode ?? (onOpenOauth ? "oauth" : "file");
   const [file, setFile] = useState<File | null>(null);
   const [jsonText, setJsonText] = useState("");
-  const [mode, setMode] = useState<"oauth" | "paste" | "file">(resolvedInitialMode);
+  const [mode, setMode] = useState<"oauth" | "paste" | "file" | "kiro">(resolvedInitialMode as "oauth" | "paste" | "file" | "kiro");
   const [pasteError, setPasteError] = useState<string | null>(null);
+  const [kiroEmail, setKiroEmail] = useState("");
+  const [kiroAccessToken, setKiroAccessToken] = useState("");
+  const [kiroRefreshToken, setKiroRefreshToken] = useState("");
+  const [kiroClientId, setKiroClientId] = useState("");
+  const [kiroClientSecret, setKiroClientSecret] = useState("");
+  const [kiroRegion] = useState("us-east-1");
+  const [kiroAuthMethod] = useState("idc");
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (mode === "kiro") {
+      const payload = {
+        provider: "kiro",
+        email: kiroEmail || undefined,
+        accessToken: kiroAccessToken,
+        refreshToken: kiroRefreshToken,
+        authMethod: kiroAuthMethod,
+        clientId: kiroClientId || undefined,
+        clientSecret: kiroClientSecret || undefined,
+        region: kiroRegion || "us-east-1",
+      };
+      const file = new File([JSON.stringify(payload)], "kiro-account.json", { type: "application/json" });
+      await onImport(file);
+      onOpenChange(false);
+      return;
+    }
 
     if (mode === "paste") {
       const trimmed = jsonText.trim();
@@ -88,12 +112,13 @@ export function ImportDialog({
         </DialogHeader>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
-          <Tabs value={mode} onValueChange={(value) => setMode(value as "oauth" | "paste" | "file")}>
-            <TabsList className={onOpenOauth ? "grid w-full grid-cols-3" : "grid w-full grid-cols-2"}>
-              {onOpenOauth ? <TabsTrigger value="oauth">OAuth</TabsTrigger> : null}
-              <TabsTrigger value="paste">Paste JSON</TabsTrigger>
-              <TabsTrigger value="file">Upload JSON</TabsTrigger>
-            </TabsList>
+        <Tabs value={mode} onValueChange={(value) => setMode(value as "oauth" | "paste" | "file" | "kiro")}>
+          <TabsList className={onOpenOauth ? "grid w-full grid-cols-4" : "grid w-full grid-cols-3"}>
+            {onOpenOauth ? <TabsTrigger value="oauth">OAuth</TabsTrigger> : null}
+            <TabsTrigger value="paste">Paste JSON</TabsTrigger>
+            <TabsTrigger value="file">Upload JSON</TabsTrigger>
+            <TabsTrigger value="kiro">Kiro</TabsTrigger>
+          </TabsList>
 
             {onOpenOauth ? (
               <TabsContent value="oauth" className="space-y-3">
@@ -131,7 +156,58 @@ export function ImportDialog({
                 onChange={(event) => setFile(event.target.files?.[0] ?? null)}
               />
             </TabsContent>
-          </Tabs>
+          <TabsContent value="kiro" className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="kiro-email">Email</Label>
+              <Input
+                id="kiro-email"
+                type="email"
+                placeholder="you@example.com"
+                value={kiroEmail}
+                onChange={(e) => setKiroEmail(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="kiro-access-token">Access Token</Label>
+              <Input
+                id="kiro-access-token"
+                type="password"
+                placeholder="Bearer token"
+                value={kiroAccessToken}
+                onChange={(e) => setKiroAccessToken(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="kiro-refresh-token">Refresh Token</Label>
+              <Input
+                id="kiro-refresh-token"
+                type="password"
+                placeholder="Refresh token"
+                value={kiroRefreshToken}
+                onChange={(e) => setKiroRefreshToken(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="kiro-client-id">Client ID</Label>
+              <Input
+                id="kiro-client-id"
+                placeholder="OIDC client ID"
+                value={kiroClientId}
+                onChange={(e) => setKiroClientId(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="kiro-client-secret">Client Secret</Label>
+              <Input
+                id="kiro-client-secret"
+                type="password"
+                placeholder="OIDC client secret"
+                value={kiroClientSecret}
+                onChange={(e) => setKiroClientSecret(e.target.value)}
+              />
+            </div>
+          </TabsContent>
+        </Tabs>
 
           {error ? (
             <p className="rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1 text-xs text-destructive">
@@ -145,7 +221,7 @@ export function ImportDialog({
                 Continue with OAuth
               </Button>
             ) : (
-              <Button type="submit" disabled={busy || (mode === "file" ? !file : !jsonText.trim())}>
+              <Button type="submit" disabled={busy || (mode === "file" ? !file : mode === "kiro" ? !kiroAccessToken.trim() || !kiroRefreshToken.trim() : !jsonText.trim())}>
                 Import
               </Button>
             )}

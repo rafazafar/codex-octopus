@@ -36,10 +36,6 @@ describe("useAccounts", () => {
 
     await result.current.pauseMutation.mutateAsync(firstAccountId as string);
     await result.current.resumeMutation.mutateAsync(firstAccountId as string);
-    await result.current.routingTierMutation.mutateAsync({
-      accountId: firstAccountId as string,
-      routingTier: "gold",
-    });
 
     const imported = await result.current.importMutation.mutateAsync(
       new File(["{}"], "auth.json", { type: "application/json" }),

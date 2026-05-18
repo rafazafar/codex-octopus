@@ -5,11 +5,9 @@ import { usePrivacyStore } from "@/hooks/use-privacy";
 import { AccountActions } from "@/features/accounts/components/account-actions";
 import { AccountTokenInfo } from "@/features/accounts/components/account-token-info";
 import { AccountUsagePanel } from "@/features/accounts/components/account-usage-panel";
-import type { AccountRoutingTier, AccountSummary } from "@/features/accounts/schemas";
+import type { AccountSummary } from "@/features/accounts/schemas";
 import { useAccountTrends } from "@/features/accounts/hooks/use-accounts";
 import { formatCompactAccountId } from "@/utils/account-identifiers";
-
-type RoutingTierSelectValue = AccountRoutingTier | "default";
 
 export type AccountDetailProps = {
   account: AccountSummary | null;
@@ -19,7 +17,6 @@ export type AccountDetailProps = {
   onResume: (accountId: string) => void;
   onDelete: (accountId: string) => void;
   onReauth: () => void;
-  onRoutingTierChange: (accountId: string, routingTier: AccountRoutingTier | null) => void;
 };
 
 export function AccountDetail({
@@ -30,7 +27,6 @@ export function AccountDetail({
   onResume,
   onDelete,
   onReauth,
-  onRoutingTierChange,
 }: AccountDetailProps) {
   const { data: trends } = useAccountTrends(account?.accountId ?? null);
   const blurred = usePrivacyStore((s) => s.blurred);
@@ -54,9 +50,6 @@ export function AccountDetail({
     ? account.email
     : null;
   const idSuffix = showAccountId ? ` (${compactId})` : "";
-  const routingTierValue: RoutingTierSelectValue = account.routingTier ?? "default";
-  const routingTierSelectId = `routing-tier-${account.accountId}`;
-
   return (
     <div key={account.accountId} className="animate-fade-in-up space-y-4 rounded-xl border bg-card p-5">
       {/* Account header */}
@@ -70,25 +63,6 @@ export function AccountDetail({
               <span className={blurred ? "privacy-blur" : ""}>{emailSubtitle}</span>{showAccountId ? ` | ID ${compactId}` : ""}
             </p>
           ) : null}
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <label className="text-xs text-muted-foreground" htmlFor={routingTierSelectId}>Routing tier</label>
-          <select
-            id={routingTierSelectId}
-            aria-label="Routing tier"
-            value={routingTierValue}
-            onChange={(event) => {
-              const value = event.currentTarget.value as RoutingTierSelectValue;
-              onRoutingTierChange(account.accountId, value === "default" ? null : value);
-            }}
-            disabled={busy}
-            className="h-8 w-36 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <option value="default">Default bronze</option>
-            <option value="gold">Gold</option>
-            <option value="silver">Silver</option>
-            <option value="bronze">Bronze</option>
-          </select>
         </div>
       </div>
 

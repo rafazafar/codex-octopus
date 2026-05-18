@@ -1,6 +1,6 @@
 ## Context
 
-The repo already exposes account status and aggregate depletion risk through dashboard-oriented payloads, and the app shell already owns persistent header/footer chrome. What is missing is a shell-oriented system-health summary that can drive one global incident bar across all protected pages.
+The repo already exposes account status through dashboard-oriented payloads, and the app shell already owns persistent header/footer chrome. What is missing is a shell-oriented system-health summary that can drive one global incident bar across all protected pages.
 
 Relevant existing surfaces:
 - `frontend/src/App.tsx`
@@ -48,17 +48,16 @@ Why:
 - matches current shared-layout architecture
 - preserves page-local alert ownership within page components
 
-### 3) Use three signal families for v1
+### 3) Use two signal families for v1
 
 Decision:
 - compute alerts from:
   - account pool availability
-  - aggregate depletion risk
   - recent normalized request-log status mix
 
 Why:
 - these directly capture the operator concern about system-wide routing failure
-- account status and depletion already exist
+- account status already exists
 - request-log status mix adds rate-limit-wave detection with one focused backend aggregate
 
 ### 4) Show only the highest-severity active alert
@@ -80,11 +79,9 @@ Account status semantics:
 Critical alerts:
 - `no_active_accounts`: `active_count == 0`
 - `account_pool_collapse`: `active_count / total_count < 0.20`
-- `capacity_exhaustion_risk`: aggregate depletion risk is `critical`
 
 Warning alerts:
 - `account_pool_degraded`: `active_count / total_count < 0.50`
-- `capacity_risk`: aggregate depletion risk is `danger`
 - `rate_limit_wave`: normalized recent `rate_limit` share exceeds threshold with minimum volume
 
 Recommended initial rate-limit-wave thresholds:
@@ -114,8 +111,6 @@ type SystemHealthResponse = {
       unavailableRatio?: number;
       requestCount?: number;
       rateLimitRatio?: number;
-      projectedExhaustionAt?: string | null;
-      riskLevel?: "warning" | "danger" | "critical";
     };
   };
 };
@@ -125,7 +120,7 @@ type SystemHealthResponse = {
 
 - threshold tuning may need adjustment after real traffic observation
 - rate-limit-wave alerts can be noisy without a minimum-volume guard
-- reusing depletion inputs from dashboard logic is good, but the public contract should remain shell-focused and compact
+- dashboard depletion forecasting remains page-local rather than a global notification source
 
 ## Migration Plan
 

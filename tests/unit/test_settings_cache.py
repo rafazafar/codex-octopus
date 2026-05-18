@@ -5,7 +5,6 @@ from types import SimpleNamespace
 import pytest
 
 import app.core.config.settings_cache as settings_cache_module
-from app.core.config.settings import DEFAULT_ACCOUNT_ROUTING_TIER_WEIGHTS, Settings
 from app.core.config.settings_cache import SettingsCache
 
 pytestmark = pytest.mark.unit
@@ -51,19 +50,3 @@ async def test_settings_cache_ttl_and_invalidate(monkeypatch) -> None:
     fourth = await cache.get()
     assert fourth is not third
     assert state["calls"] == 3
-
-
-def test_account_routing_tier_weights_parse_json_object() -> None:
-    settings = Settings(account_routing_tier_weights='{"gold": 10, "silver": 4, "bronze": 1}')
-
-    assert settings.account_routing_tier_weights == {"gold": 10.0, "silver": 4.0, "bronze": 1.0}
-
-
-def test_account_routing_tier_weights_fall_back_per_invalid_tier() -> None:
-    settings = Settings(account_routing_tier_weights={"gold": 9, "silver": 0, "bronze": "nope"})
-
-    assert settings.account_routing_tier_weights == {
-        "gold": 9.0,
-        "silver": DEFAULT_ACCOUNT_ROUTING_TIER_WEIGHTS["silver"],
-        "bronze": DEFAULT_ACCOUNT_ROUTING_TIER_WEIGHTS["bronze"],
-    }

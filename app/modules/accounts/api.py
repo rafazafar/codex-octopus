@@ -13,8 +13,6 @@ from app.modules.accounts.schemas import (
     AccountImportResponse,
     AccountPauseResponse,
     AccountReactivateResponse,
-    AccountRoutingTierUpdateRequest,
-    AccountRoutingTierUpdateResponse,
     AccountsResponse,
     AccountTrendsResponse,
 )
@@ -115,18 +113,6 @@ async def pause_account(
     if not success:
         raise DashboardNotFoundError("Account not found", code="account_not_found")
     return AccountPauseResponse(status="paused")
-
-
-@router.put("/{account_id}/routing-tier", response_model=AccountRoutingTierUpdateResponse)
-async def update_account_routing_tier(
-    account_id: str,
-    payload: AccountRoutingTierUpdateRequest,
-    context: AccountsContext = Depends(get_accounts_context),
-) -> AccountRoutingTierUpdateResponse:
-    success, stored_tier = await context.service.update_routing_tier(account_id, payload.routing_tier)
-    if not success:
-        raise DashboardNotFoundError("Account not found", code="account_not_found")
-    return AccountRoutingTierUpdateResponse(status="updated", routing_tier=stored_tier)
 
 
 @router.delete("/{account_id}", response_model=AccountDeleteResponse)

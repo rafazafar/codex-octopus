@@ -48,13 +48,6 @@ DEFAULT_ENCRYPTION_KEY_FILE = DEFAULT_HOME_DIR / "encryption.key"
 type StringListInput = str | list[str] | None
 type OptionalStringInput = str | None
 type ModelContextWindowOverridesInput = str | dict[str, int] | None
-type AccountRoutingTierWeightsInput = str | dict[str, object] | None
-
-DEFAULT_ACCOUNT_ROUTING_TIER_WEIGHTS = {
-    "gold": 6.0,
-    "silver": 3.0,
-    "bronze": 1.0,
-}
 
 
 def _validate_context_window_entries(data: Mapping[str, object]) -> dict[str, int]:
@@ -70,24 +63,6 @@ def _validate_context_window_entries(data: Mapping[str, object]) -> dict[str, in
             raise ValueError(f"model_context_window_overrides value for '{k}' must be a positive integer, got {v}")
         result[str(k)] = v
     return result
-
-
-def _normalize_account_routing_tier_weights(data: Mapping[str, object] | None) -> dict[str, float]:
-    weights = dict(DEFAULT_ACCOUNT_ROUTING_TIER_WEIGHTS)
-    if data is None:
-        return weights
-    for tier, default_weight in DEFAULT_ACCOUNT_ROUTING_TIER_WEIGHTS.items():
-        raw_value = data.get(tier)
-        if isinstance(raw_value, bool) or raw_value is None:
-            weights[tier] = default_weight
-            continue
-        try:
-            weight = float(raw_value)
-        except (TypeError, ValueError):
-            weights[tier] = default_weight
-            continue
-        weights[tier] = weight if weight > 0.0 else default_weight
-    return weights
 
 
 def _parse_port_value(raw: str) -> int | None:
@@ -210,9 +185,6 @@ class Settings(BaseSettings):
     model_registry_refresh_interval_seconds: int = Field(default=300, gt=0)
     model_registry_client_version: str = "0.101.0"
     model_context_window_overrides: Annotated[dict[str, int], NoDecode] = Field(default_factory=dict)
-    account_routing_tier_weights: Annotated[dict[str, float], NoDecode] = Field(
-        default_factory=lambda: dict(DEFAULT_ACCOUNT_ROUTING_TIER_WEIGHTS)
-    )
     proxy_unauthenticated_client_cidrs: Annotated[list[str], NoDecode] = Field(default_factory=list)
     firewall_trust_proxy_headers: bool = False
     firewall_trusted_proxy_cidrs: Annotated[list[str], NoDecode] = Field(
@@ -385,26 +357,6 @@ class Settings(BaseSettings):
         if isinstance(value, dict):
             return _validate_context_window_entries(value)
         raise TypeError("model_context_window_overrides must be a JSON object string or dict")
-
-    @field_validator("account_routing_tier_weights", mode="before")
-    @classmethod
-    def _parse_account_routing_tier_weights(cls, value: AccountRoutingTierWeightsInput) -> dict[str, float]:
-        if value is None:
-            return dict(DEFAULT_ACCOUNT_ROUTING_TIER_WEIGHTS)
-        if isinstance(value, str):
-            value = value.strip()
-            if not value:
-                return dict(DEFAULT_ACCOUNT_ROUTING_TIER_WEIGHTS)
-            try:
-                parsed = json.loads(value)
-            except json.JSONDecodeError:
-                return dict(DEFAULT_ACCOUNT_ROUTING_TIER_WEIGHTS)
-            if not isinstance(parsed, dict):
-                return dict(DEFAULT_ACCOUNT_ROUTING_TIER_WEIGHTS)
-            return _normalize_account_routing_tier_weights(parsed)
-        if isinstance(value, dict):
-            return _normalize_account_routing_tier_weights(value)
-        return dict(DEFAULT_ACCOUNT_ROUTING_TIER_WEIGHTS)
 
     @field_validator("upstream_compact_timeout_seconds")
     @classmethod

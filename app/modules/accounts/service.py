@@ -30,8 +30,6 @@ from app.modules.accounts.schemas import (
     AccountImportFormat,
     AccountImportResponse,
     AccountRequestUsage,
-    AccountRoutingTier,
-    AccountRoutingTierUpdateValue,
     AccountProviderValue,
     AccountSummary,
     AccountTrendsResponse,
@@ -225,17 +223,6 @@ class AccountsService:
         if result:
             get_account_selection_cache().invalidate()
         return result
-
-    async def update_routing_tier(
-        self,
-        account_id: str,
-        routing_tier: AccountRoutingTierUpdateValue | None,
-    ) -> tuple[bool, AccountRoutingTier | None]:
-        stored_tier: AccountRoutingTier | None = None if routing_tier in (None, "default") else routing_tier
-        result = await self._repo.update_routing_tier(account_id, stored_tier)
-        if result:
-            get_account_selection_cache().invalidate()
-        return result, stored_tier
 
     async def delete_account(self, account_id: str) -> bool:
         result = await self._repo.delete(account_id)

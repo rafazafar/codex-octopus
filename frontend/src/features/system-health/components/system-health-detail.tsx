@@ -2,7 +2,7 @@ import { AlertTriangle } from "lucide-react";
 
 import type { SystemHealthAlert } from "@/features/system-health/schemas";
 import { cn } from "@/lib/utils";
-import { formatDateTimeInline, formatPercent, formatRate } from "@/utils/formatters";
+import { formatPercent, formatRate } from "@/utils/formatters";
 
 const severityStyles = {
   warning: "border-amber-500/20 bg-amber-500/10 text-amber-800 dark:text-amber-300",
@@ -22,12 +22,6 @@ function buildReasonLines(alert: SystemHealthAlert): string[] {
       return [
         `Active accounts: ${metrics.activeAccounts ?? "--"} / ${metrics.totalAccounts ?? "--"}`,
         `Unavailable accounts: ${metrics.unavailableAccounts ?? "--"} (${formatPercent(metrics.unavailableRatio ? metrics.unavailableRatio * 100 : null)})`,
-      ];
-    case "capacity_exhaustion_risk":
-    case "capacity_risk":
-      return [
-        `Risk level: ${metrics.riskLevel ?? "--"}`,
-        `Projected exhaustion: ${formatDateTimeInline(metrics.projectedExhaustionAt)}`,
       ];
     case "rate_limit_wave":
       return [

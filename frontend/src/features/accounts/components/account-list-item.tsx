@@ -14,13 +14,6 @@ export type AccountListItemProps = {
   onSelect: (accountId: string) => void;
 };
 
-function formatRoutingTierLabel(tier: AccountSummary["routingTier"]): string {
-  if (tier === "gold" || tier === "silver" || tier === "bronze") {
-    return formatSlug(tier);
-  }
-  return "Default bronze";
-}
-
 function MiniQuotaBar({ percent }: { percent: number | null }) {
   if (percent === null) {
     return <div data-testid="mini-quota-track" className="h-1 flex-1 overflow-hidden rounded-full bg-muted" />;
@@ -45,9 +38,10 @@ export function AccountListItem({ account, selected, showAccountId = false, onSe
   const emailSubtitle = account.displayName && account.displayName !== account.email
     ? account.email
     : null;
-  const baseSubtitle = emailSubtitle ?? `${formatSlug(account.planType)} | ${formatRoutingTierLabel(account.routingTier)}`;
+  const baseSubtitle = emailSubtitle ?? formatSlug(account.planType);
   const idSuffix = showAccountId ? ` | ID ${formatCompactAccountId(account.accountId)}` : "";
   const secondary = account.usage?.secondaryRemainingPercent ?? null;
+  const providerLabel = account.provider === "kiro" ? "Kiro" : null;
 
   return (
     <button
@@ -66,10 +60,17 @@ export function AccountListItem({ account, selected, showAccountId = false, onSe
             {titleIsEmail && blurred ? <span className="privacy-blur">{title}</span> : title}
           </p>
           <p className="truncate text-xs text-muted-foreground" title={showAccountId ? `Account ID ${account.accountId}` : undefined}>
-            {emailSubtitle ? <><span className={blurred ? "privacy-blur" : undefined}>{emailSubtitle}</span> | {formatRoutingTierLabel(account.routingTier)}{idSuffix}</> : <>{baseSubtitle}{idSuffix}</>}
+            {emailSubtitle ? <><span className={blurred ? "privacy-blur" : undefined}>{emailSubtitle}</span>{idSuffix}</> : <>{baseSubtitle}{idSuffix}</>}
           </p>
         </div>
-        <StatusBadge status={status} />
+        <div className="flex items-center gap-1.5">
+          {providerLabel ? (
+            <span className="rounded border px-1.5 py-0.5 text-xs text-muted-foreground">
+              {providerLabel}
+            </span>
+          ) : null}
+          <StatusBadge status={status} />
+        </div>
       </div>
       <div className="mt-1.5">
         <MiniQuotaBar percent={secondary} />
